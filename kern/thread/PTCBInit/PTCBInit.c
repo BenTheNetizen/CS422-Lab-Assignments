@@ -13,4 +13,8 @@ void tcb_init(unsigned int mbi_addr)
     paging_init(mbi_addr);
 
     // TODO
+    // the two indices which are NUM_IDS are the first and the last TCB in the doubly linked list
+    for (unsigned int i = 0; i < NUM_IDS; i++) {
+        tcb_init_at_id(i);
+    }
 }
