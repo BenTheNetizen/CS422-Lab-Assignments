@@ -11,7 +11,7 @@ int main(int argc, char **argv)
     printf("pong: the value at address %x: %d\n", addr, *addr);
     printf("pong: writing the value %d to the address %x\n", val, addr);
     *addr = val;
-    yield();
+    yield();    // yield does not do anything right now until lab4
     printf("pong: the new value at address %x: %d\n", addr, *addr);
 
     return 0;
