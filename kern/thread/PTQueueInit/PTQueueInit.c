@@ -11,7 +11,9 @@ void tqueue_init(unsigned int mbi_addr)
 
     tcb_init(mbi_addr);
 
-    // TODO
+    for (unsigned int i=0;i<=NUM_IDS;i++){
+        tqueue_init_at_id(i);
+    }
 }
 
 /**
@@ -22,7 +24,15 @@ void tqueue_init(unsigned int mbi_addr)
  */
 void tqueue_enqueue(unsigned int chid, unsigned int pid)
 {
-    // TODO
+    unsigned int tail = tqueue_get_tail(chid);
+    if (tail==NUM_IDS){
+        tqueue_set_head(chid, pid);
+    }
+    else{
+        tcb_set_next(tail, pid);
+    }
+    tcb_set_prev(pid, tail);
+    tqueue_set_tail(chid, pid);
 }
 
 /**
@@ -32,8 +42,16 @@ void tqueue_enqueue(unsigned int chid, unsigned int pid)
  */
 unsigned int tqueue_dequeue(unsigned int chid)
 {
-    // TODO
-    return 0;
+    unsigned int head = tqueue_get_head(chid);
+    if (head==NUM_IDS){ return NUM_IDS; }
+    unsigned int next = tcb_get_next(head);
+    if (next==NUM_IDS){
+        tqueue_set_tail(chid, NUM_IDS);
+    }
+    tcb_set_prev(head, NUM_IDS);
+    tcb_set_next(head, NUM_IDS);
+    tqueue_set_head(chid, next);
+    return head;
 }
 
 /**
@@ -42,5 +60,23 @@ unsigned int tqueue_dequeue(unsigned int chid)
  */
 void tqueue_remove(unsigned int chid, unsigned int pid)
 {
-    // TODO
+    unsigned int prev = tcb_get_prev(pid);
+    unsigned int next = tcb_get_next(pid);
+    unsigned int head = tqueue_get_head(chid);
+    unsigned int tail = tqueue_get_tail(chid);
+
+    if (pid==head){
+        tqueue_set_head(chid, next);
+    }
+    if (pid==tail){
+        tqueue_set_tail(chid, prev);
+    }
+    if (prev!=NUM_IDS){
+        tcb_set_next(prev, next);
+    }
+    if (next!=NUM_IDS){
+        tcb_set_prev(next, prev);
+    }
+    tcb_set_next(pid, NUM_IDS);
+    tcb_set_prev(pid, NUM_IDS);
 }
