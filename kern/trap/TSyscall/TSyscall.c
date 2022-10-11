@@ -79,19 +79,19 @@ void sys_spawn(void)
 {
     unsigned int elf_id = syscall_get_arg2();
     unsigned int quota = syscall_get_arg3();
-    uint8_t bin;
+    uint8_t * bin;
 
     if (elf_id==1){
-        bin = _binary___obj_user_pingpong_ping_start;
+        bin = (uint8_t *)_binary___obj_user_pingpong_ping_start;
     }
     else if (elf_id==2){
-        bin = _binary___obj_user_pingpong_pong_start;
+        bin = (uint8_t *)_binary___obj_user_pingpong_pong_start;
     }
     else if (elf_id==3){
-        bin = _binary___obj_user_pingpong_ding_start;
+        bin = (uint8_t *)_binary___obj_user_pingpong_ding_start;
     }
     else if (elf_id==4){
-        bin = _binary___obj_user_fork_test_fork_test_start;
+        bin = (uint8_t *)_binary___obj_user_fork_test_fork_test_start;
     }
     else{
         syscall_set_errno(E_INVAL_PID);

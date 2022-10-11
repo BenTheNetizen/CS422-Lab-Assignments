@@ -95,7 +95,7 @@ void pgflt_handler(void)
 void exception_handler(void)
 {
     unsigned int curid = get_curid();
-    uint32_t trapno = uctx_pool[cur_pid].trapno;
+    uint32_t trapno = uctx_pool[curid].trapno;
     if (trapno==T_PGFLT){
         pgflt_handler();
     }
@@ -128,7 +128,7 @@ static int default_intr_handler(void)
 void interrupt_handler(void)
 {
     unsigned int curid = get_curid();
-    uint32_t trapno = uctx_pool[cur_pid].trapno;
+    uint32_t trapno = uctx_pool[curid].trapno;
     if (trapno==T_IRQ0 + IRQ_SPURIOUS){
         spurious_intr_handler();
     }
