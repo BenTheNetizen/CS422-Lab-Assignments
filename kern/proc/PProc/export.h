@@ -5,6 +5,7 @@
 
 unsigned int proc_create(void *elf_addr, unsigned int quota);
 void proc_start_user(void);
+unsigned int proc_fork(void);
 
 #endif  /* _KERN_ */
 

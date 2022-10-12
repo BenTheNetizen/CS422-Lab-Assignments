@@ -11,6 +11,7 @@ void set_pdir_base(unsigned int index);
 void proc_start_user(void);
 unsigned int get_ptbl_entry_by_va(unsigned int proc_index, unsigned int vaddr);
 void syscall_dispatch(void);
+unsigned int copy_on_write(unsigned int pid, unsigned int vaddr);
 
 #endif  /* _KERN_ */
 

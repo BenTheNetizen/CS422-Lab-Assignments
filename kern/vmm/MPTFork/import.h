@@ -18,6 +18,8 @@ void set_ptbl_entry_identity(unsigned int pde_index, unsigned int pte_index,
                              unsigned int perm);
 void rmv_ptbl_entry(unsigned int proc_index, unsigned int pde_index,
                     unsigned int pte_index);
+unsigned int container_alloc(unsigned int id);
+unsigned int get_pdir_entry_by_va(unsigned int proc_index, unsigned int vaddr);
 
 #endif  /* _KERN_ */
 
