@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
     printf("idle\n");
 
-    pid_t ping_pid, pong_pid, ding_pid;
+    pid_t ping_pid, pong_pid, ding_pid, fork_test_pid;
 
     if ((ping_pid = spawn(1, 1000)) != -1)
         printf("ping in process %d.\n", ping_pid);
@@ -24,5 +24,10 @@ int main(int argc, char **argv)
     else
         printf("Failed to launch ding.\n");
 
+    if ((fork_test_pid = spawn(4, 1000)) != -1)
+        printf("fork_test in process %d.\n", fork_test_pid);
+    else
+        printf("Failed to launch fork_test.\n");
+        
     return 0;
 }

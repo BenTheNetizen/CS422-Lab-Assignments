@@ -21,7 +21,7 @@
 unsigned int copy_pdir_and_ptbl(unsigned int from_proc, unsigned int to_proc)
 {
     unsigned int from_pde;
-    unsigned int page_index
+    unsigned int page_index;
     unsigned int from_pte;
     unsigned int vaddr;
     // HOW DO WE DO THIS WITHIN THE BOUNDS OF USER SPACE?
@@ -53,19 +53,19 @@ unsigned int copy_on_write(unsigned int pid, unsigned int vaddr) {
         3. Copy over the contents of the page to the new page
         4. Set the permission bits of the page to be read/write
     */
-    unsigned int pte = get_ptbl_entry_by_vaddr(pid, vaddr);
+    unsigned int pte = get_ptbl_entry_by_va(pid, vaddr);
     unsigned int page_index = container_alloc(pid);
     if (page_index == 0) {
         dprintf("copy_on_write: container_alloc failed	\n");
         return 0;
     }
-    unsigned int *from_page_addr = (unsigned int *) GET_PAGE_ADDR(pte);
+    unsigned int *from_page_addr = (unsigned int *) ADDR_MASK(pte);
     unsigned int *new_page_addr = (unsigned int *) (page_index << 12);
     for (unsigned int i = 0; i < PAGESIZE; i++) {
         new_page_addr[i] = from_page_addr[i];
     }
 
     // set the pte to point to the new page
-    set_ptbl_entry_by_vaddr(pid, vaddr, page_index, PT_PERM_PTU);
+    set_ptbl_entry_by_va(pid, vaddr, page_index, PT_PERM_PTU);
     return 1;
 }

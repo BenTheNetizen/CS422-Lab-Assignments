@@ -129,10 +129,12 @@ void sys_fork()
     // TODO
     unsigned int chid = proc_fork();
     if (chid == NUM_IDS){
+        dprintf("sys_fork: fork failed\n");
         syscall_set_errno(E_INVAL_PID);
         syscall_set_retval1(NUM_IDS);
         return;
     }
     syscall_set_errno(E_SUCC);
-    syscall_set_retval1(chid);
+    syscall_set_retval1(get_curid());
+    // syscall_set_retval2(get_curid());
 }

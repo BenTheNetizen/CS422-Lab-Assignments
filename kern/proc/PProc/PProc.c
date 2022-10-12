@@ -56,13 +56,13 @@ unsigned int proc_fork()
    unsigned int pid, chid, quota, child_quota, usage, parent_quota;
 
     pid = get_curid();
-    parent_quota = container_get_quota(id);
-    usage = container_get_usage(id);
+    parent_quota = container_get_quota(pid);
+    usage = container_get_usage(pid);
     child_quota = parent_quota - usage / 2;
 
     // thread_spawn handles the container stuff
     // proc_start_user may not be the correct entry point
-    chid = thread_spawn((void *) proc_start_user, id, child_quota);
+    chid = thread_spawn((void *) proc_start_user, pid, child_quota);
 
     if (chid != NUM_IDS) {
         // copy page directory and page table entries for child process
@@ -77,11 +77,6 @@ unsigned int proc_fork()
         uctx_pool[chid].esp = uctx_pool[pid].esp;
         uctx_pool[chid].eflags = uctx_pool[pid].eflags;
         uctx_pool[chid].eip = uctx_pool[pid].eip;
-        
-        // set child's return value to 0 and parent's return to the child's pid
-        // is this necessary?
-        uctx_pool[chid].eax = 0;
-        uctx_pool[pid].eax = chid;
     }
 
     return chid;
