@@ -1,5 +1,6 @@
 #include <lib/gcc.h>
 #include <lib/x86.h>
+#include <lib/debug.h>
 
 #include "import.h"
 
@@ -19,11 +20,13 @@ unsigned int kctx_new(void *entry, unsigned int id, unsigned int quota)
 {
     if (container_can_consume(id, quota)){
         unsigned int child = alloc_mem_quota(id, quota);
+        dprintf("kctx_new: child id: %d\n", child);
         if (child!=NUM_IDS){
             kctx_set_eip(child, entry);
             kctx_set_esp(child, (void *)&STACK_LOC[child][PAGESIZE-1]);
             return child;
         }
     }
+    dprintf("kctx_new: container_can_consume failed\n");
     return NUM_IDS;
 }

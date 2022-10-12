@@ -128,6 +128,7 @@ void sys_fork()
 {
     // TODO
     unsigned int chid = proc_fork();
+    dprintf("forked child id: %d\n", chid);
     if (chid == NUM_IDS){
         dprintf("sys_fork: fork failed\n");
         syscall_set_errno(E_INVAL_PID);

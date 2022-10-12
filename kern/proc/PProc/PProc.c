@@ -58,12 +58,12 @@ unsigned int proc_fork()
     pid = get_curid();
     parent_quota = container_get_quota(pid);
     usage = container_get_usage(pid);
-    child_quota = parent_quota - usage / 2;
-
+    child_quota = (parent_quota - usage) / 2;
+    dprintf("pic: %d, parent_quota: %d, usage: %d, child_quota: %d\n", pid, parent_quota, usage, child_quota);
     // thread_spawn handles the container stuff
     // proc_start_user may not be the correct entry point
     chid = thread_spawn((void *) proc_start_user, pid, child_quota);
-
+    dprintf("proc_fork: thread_spawn returned %d\n", chid);
     if (chid != NUM_IDS) {
         // copy page directory and page table entries for child process
         if (!copy_pdir_and_ptbl(pid, chid)) {
