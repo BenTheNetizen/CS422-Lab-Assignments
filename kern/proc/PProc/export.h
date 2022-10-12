@@ -4,6 +4,7 @@
 #ifdef _KERN_
 
 unsigned int proc_create(void *elf_addr, unsigned int quota);
+unsigned int proc_fork(void);
 void proc_start_user(void);
 
 #endif  /* _KERN_ */

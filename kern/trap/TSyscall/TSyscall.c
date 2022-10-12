@@ -126,5 +126,13 @@ void sys_yield(void)
 // Your implementation of fork
 void sys_fork()
 {
-    // TODO
+    unsigned int child = proc_fork();
+    syscall_set_errno(E_SUCC);
+    if (child){
+        syscall_set_retval1(child);
+    }
+    else{
+        syscall_set_retval1(0);
+    }
+    return;
 }

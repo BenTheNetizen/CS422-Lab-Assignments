@@ -40,3 +40,26 @@ unsigned int proc_create(void *elf_addr, unsigned int quota)
 
     return pid;
 }
+
+unsigned int proc_fork(void)
+{
+    unsigned int id = get_curid();
+
+    unsigned int quota = container_get_quota(id);
+    unsigned int usage = container_get_usage(id);
+    unsigned int child = thread_spawn((void *) proc_start_user, id, (quota-usage)/2);
+
+    if (child!=NUM_IDS){
+        uctx_pool[child].es = uctx_pool[id].es;
+        uctx_pool[child].ds = uctx_pool[id].ds;
+        uctx_pool[child].cs = uctx_pool[id].cs;
+        uctx_pool[child].ss = uctx_pool[id].ss;
+        uctx_pool[child].esp = uctx_pool[id].esp;
+        uctx_pool[child].eflags = uctx_pool[id].eflags;
+        uctx_pool[child].eip = uctx_pool[id].eip;
+        
+        copy_page_tables(id, child);
+    }
+
+    return child;
+}
