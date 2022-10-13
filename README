@@ -8,7 +8,48 @@ To use your solutions from lab 1: git merge lab1
 To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
 List here the following info:
-1. who you have worked with
-2. whether you coded this assignment together, and if not, who worked on which part
-3. brief description of what you have implemented
-4. and anything else you would like us to know
+
+I worked with Christopher Nathan (netId: cjn26)
+We coded this assignment together.
+
+# Part 1: Thread & Process Management
+
+## PKCtxIntro Layer
+In this layer, we implemented the cswitch assembly function. To do this, we had to save the register values for the "from thread" and then load the previosuly-saved register values for the "to thread" into the registers. Since each value is 32 bits, we have values of 4 bytes to load. We started with the address on the stack to which we should save the old registers, so we offset this address by 4 for each successive register in the order that struct tf_t is defined. Finally, we saved the eip value as the return address on the stack so the old thread knows where to start once resuming. To load the new thread context, we did the reverse process and loaded values from the stack into the registers in increments of 4 bytes, ending with putting the return address into eip so the new thread knows where to start from.
+
+## PKCtxNew Layer
+In this layer, we look to allcoate memory for a new child thread. We first check if the process can consume the given quota of pages. If so, we allocate that quota to the thread and set the eip to the entry point given in the thread. This allows the thread to start where specified in the function call. We finally set the esp to the top of that process' stack.
+
+## PTCBInit Layer
+In this layer, we simply initialize the tcb structure for each process. The fields of this structure are set to NUM_IDS (essentially null) because the thread has not been added to any queue yet.
+
+## PTQueueInit Layer
+This layer has methods setting up the thread queue structure. tqueue_init() initializes each process thread queue to empty. We implemented enqueue and dequeue functions that add to and remove from a given queue. Enqueue adds the given thread id to the tail of the specified queue, updating the doubly linked list in the process by setting prev and next fields on either side of the inserted struct. Dequeue pops the head of the specified queue, removing neighbor references in the linked list struct similarly. Finally, the tqueue_remove() function is a generalization of dequeue, in that it removes the given pid from the qiven queue no matter pid's location in the queue. This involves a few edge cases where the pid is at the head or tail of the queue, or if it has a null prev or next field.
+
+## PThread Layer
+This layer has functions to initialize and spawn new threads and yield from a given pid. The thread_spawn() function first allocates memory for the new thread using the kctx_new function. It then sets the state of that thread to READY and adds it to the ready queue, which is the queue at index NUM_IDS. It returns the child pid. The thread_yield function first checks if the ready queue is null – if so, it does nothing. If there's a thread on the ready queue, it sets the current thread's status to READY and enqueues it on the ready queue, then it sets the new thread's state to RUNNING and sets the current id. Finally, it calls kctx_switch to save the old thread context and load the new one into the registers.
+
+# Part 2: Trap Handling
+
+## TSyscall Arg Layer
+In this layer, we simply implemented getters and setters for the current process' syscall arguments stored in the registers. These values are stored in the uctx_pool array, in order of: eax, ebx, ecx, edx, esi, edi. The system call argument is stored in eax, so the first function argument is stored in ebx.
+
+## TSyscall Layer
+In this layer, we implemented sys_spawn(), which spawns a new child process. We get the elf_id and quota from the syscall arguments. Since our ELF binaries are statically loaded into memory based on their elf_id, we simply set the binary pointer to the corresponding binary. If elf_id is invalid, we set the errno and return NUM_IDS to indicate an error. If we have a valid binary, we create a new process with the specified quota passed into the syscall and set the errno and return value according to if the call succeeded or not.
+
+In sys_yield(), we simply call thread_yield() to switch threads and set errno to E_SUCC to indicate success.
+
+## TTrapHandler Layer
+In this layer, we handle different exceptions and interrupts differently depending on the trapno. We get the trapno from the uctx_pool for the current pid. If the trapno is a page fault, we call the page fault handler. If not, we call the default exception handler. Similarly, for the interrupt handler, we call the spurious interrupt handler if trapno is T_IRQ0 + IRQ_SPURIOUS and timer handler if trapno is T_IRQ0 + IRQ_TIMER. Otherwise, we just call the default interrupt handler.
+
+# Part 3: Copy-on-write and Fork
+
+In order to implement fork, we build a new layer on top of MPTIntro (MPTFork). This layer has functions to copy the page table entries from a parent process to a child process, as well as copy memory upon write. To copy the page tables, we loop through the parent page directory entries in user space and check if the parent's directory mapping exists. If it does, we allocate a new page table for the child process and store it in the corresponding page directory entry of the child. Then, for each valid page directory entry, we loop through each page table entry in the parent, converting it into a physical page index, and then copy this physical page into the corresponding page table entry of the child. We set COW privileges for that physical page for both the child and the parent.
+
+In our copy_on_write function that executes when a process attempts to write to a page with COW privilege, we get the page table entry of the child (the one with COW) and allocate a new page. We copy the memory from the old physical page (the one with COW) to the new physical page. Finally, we set the process' page table entry at that virtual address to be the new physical page with present, user, and write permissions.
+
+We handle page fault traps resulting from COW violations in the trap handler by calling our copy on write function for the virtual address at which the violation arose.
+
+We implemented a proc_fork() function that forks the currently-running process and gives half the remaining quota to the child process. We call thread_spawn to set up the child's container and memory, and then we copy over the user space page table entries from the parent to the child. Finally, we set the child's ebx register to 0 to indicate that it's the child when the fork syscall returns. We return the child pid for the currently-running process to indicate that it's the parent process.
+
+We call this proc_fork() function in sys_fork, checking the return value to determine whether we are in the parent or the child. We set the errno if the fork failed and set the return value to NUM_IDS. If the fork succeeded, we set the first return value to the child pid to indicate we are in the parent process.
