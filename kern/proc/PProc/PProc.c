@@ -59,7 +59,7 @@ unsigned int proc_fork()
     parent_quota = container_get_quota(pid);
     usage = container_get_usage(pid);
     child_quota = (parent_quota - usage) / 2;
-    dprintf("pic: %d, parent_quota: %d, usage: %d, child_quota: %d\n", pid, parent_quota, usage, child_quota);
+    dprintf("proc_fork: pid: %d, parent_quota: %d, usage: %d, child_quota: %d\n", pid, parent_quota, usage, child_quota);
     // thread_spawn handles the container stuff
     // proc_start_user may not be the correct entry point
     chid = thread_spawn((void *) proc_start_user, pid, child_quota);
@@ -67,16 +67,15 @@ unsigned int proc_fork()
     if (chid != NUM_IDS) {
         // copy page directory and page table entries for child process
         if (!copy_pdir_and_ptbl(pid, chid)) {
-            dprintf("proc_fork: copy_pdir_and_ptbl failed");
+            dprintf("proc_fork: copy_pdir_and_ptbl failed\n");
         }
 
-        uctx_pool[chid].es = uctx_pool[pid].es;
-        uctx_pool[chid].ds = uctx_pool[pid].ds;
-        uctx_pool[chid].cs = uctx_pool[pid].cs;
-        uctx_pool[chid].ss = uctx_pool[pid].ss;
-        uctx_pool[chid].esp = uctx_pool[pid].esp;
-        uctx_pool[chid].eflags = uctx_pool[pid].eflags;
-        uctx_pool[chid].eip = uctx_pool[pid].eip;
+        // copy user context
+        //uctx_pool[chid] = uctx_pool[pid]; // this points the child context to the parent, when we want a copy
+        memcpy(&uctx_pool[chid], &uctx_pool[pid], sizeof(tf_t));
+
+        // set ebx return for the child
+        uctx_pool[chid].regs.ebx = 0;
     }
 
     return chid;

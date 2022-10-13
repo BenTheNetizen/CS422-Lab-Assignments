@@ -118,10 +118,12 @@ unsigned int container_split(unsigned int id, unsigned int quota)
  */
 unsigned int container_alloc(unsigned int id)
 {
+    dprintf("container_alloc: container usage: %d, quota: %d for id: %d\n", CONTAINER[id].usage, CONTAINER[id].quota, id);
     if (CONTAINER[id].usage + 1 <= CONTAINER[id].quota) {
         CONTAINER[id].usage++;
         return palloc();
     } else {
+        dprintf("container_alloc: no more memory for process %d\n", id);
         return 0;
     }
 }

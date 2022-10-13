@@ -79,7 +79,7 @@ void sys_spawn(void)
 {
     unsigned int elf_id = syscall_get_arg2();
     unsigned int quota = syscall_get_arg3();
-    uint8_t * bin;
+uint8_t * bin;
 
     if (elf_id==1){
         bin = (uint8_t *)_binary___obj_user_pingpong_ping_start;
@@ -135,7 +135,7 @@ void sys_fork()
         syscall_set_retval1(NUM_IDS);
         return;
     }
+
+    syscall_set_retval1(chid);
     syscall_set_errno(E_SUCC);
-    syscall_set_retval1(get_curid());
-    // syscall_set_retval2(get_curid());
 }

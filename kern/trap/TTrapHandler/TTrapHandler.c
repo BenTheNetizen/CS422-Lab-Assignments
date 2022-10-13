@@ -62,12 +62,15 @@ void pgflt_handler(void)
 
     if ((errno & 0x3) == 0x3) {
         // error for writing to a read-only page
+        dprintf("pgflt_handler: error for writing to a read-only page\n");
         pte_entry = get_ptbl_entry_by_va(cur_pid, fault_va);
         if (pte_entry & PTE_COW) {
             // handling copy-on-write
+            dprintf("pgflt_handler: handling copy-on-write\n");
             if (!copy_on_write(cur_pid, fault_va)) {
                 KERN_PANIC("Copy-on-write failed.\n");
             }
+            return;
 
         } else {
             KERN_PANIC("Writing to read-only page: va = %p\n", fault_va);

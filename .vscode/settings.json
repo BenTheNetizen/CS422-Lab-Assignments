@@ -3,6 +3,7 @@
         "syscall.h": "c",
         "import.h": "c",
         "debug.h": "c",
-        "x86.h": "c"
+        "x86.h": "c",
+        "trap.h": "c"
     }
 }

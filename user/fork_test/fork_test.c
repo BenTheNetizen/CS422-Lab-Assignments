@@ -15,14 +15,14 @@ int main(int argc, char **argv)
         pid = sys_fork();
 
         if (pid == 0) {
-            printf("This is grandchild, global = %p\n", global_test);
+            printf("Fork Test: This is grandchild, global = %p\n", global_test);
         } else {
-            printf("Child forks %d, global = %p\n", pid, global_test);
+            printf("Fork Test: Child forks %d, global = %p\n", pid, global_test);
         }
     } else {
-        printf("parent forks %d, global = %p\n", pid, global_test);
+        printf("Fork Test: parent forks %d, global = %p\n", pid, global_test);
         global_test = 0x5678;
-        printf("parent global_test1 = %p\n", global_test);
+        printf("Fork Test: parent global_test1 = %p\n", global_test);
     }
 
     return 0;

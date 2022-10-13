@@ -44,38 +44,26 @@
 
 unsigned int copy_pdir_and_ptbl(unsigned int from_proc, unsigned int to_proc)
 {
-    // unsigned int from_pde;
-    // unsigned int page_index;
-    // unsigned int from_pte;
-    // unsigned int vaddr;
-    // // HOW DO WE DO THIS WITHIN THE BOUNDS OF USER SPACE?
-    // // copy only what's in user space
-    // for (unsigned int i = 0; i < 1024; i++) {
-    //     // construct virtual address from pde index
-    //     page_index = container_alloc(to_proc);
-    //     if (page_index == 0) {
-    //         dprintf("copy_pdir_and_ptbl: container_alloc failed	\n");
-    //         return 0;
-    //     }
-    //     set_pdir_entry(to_proc, i, page_index);
-    //     for (unsigned int j = 0; j < 1024; j++) {
-    //         from_pte = get_ptbl_entry(from_proc, i, j); // this is an address with permission bits
-    //         page_index = ADDR_MASK(from_pte) / PAGESIZE;
-    //         set_ptbl_entry(to_proc, i, j, page_index, PT_PERM_FORK);
-    //         set_ptbl_entry(from_proc, i, j, page_index, PT_PERM_FORK);
-    //     }
-    // }
-
-    // return 1;
+    unsigned int vaddr, pte, page_index, parent_page_index, parent_pde;
     for (unsigned int pde_index = VM_USERLO_PDE; pde_index < VM_USERHI_PDE; pde_index++) {
-        unsigned int vaddr = pde_index*PDIRSIZE;
-        alloc_ptbl(to_proc, vaddr);
-
+        vaddr = pde_index << 22; // we want increment the page directory index by 1 (since it is encoded in the vaddr)
+        parent_pde = get_pdir_entry_by_va(from_proc, vaddr);
+        // if parent_pde != 0, then the parent has a page table at this index, so child needs one too
+        if (parent_pde != 0 && (parent_pde & PTE_P) != 0) {
+            dprintf("copy_dir_and_ptbl: running alloc_ptbl for proc %d at vaddr %x\n", to_proc, vaddr);
+            if (!alloc_ptbl(to_proc, vaddr)) {
+                dprintf("copy_pdir_and_ptbl: alloc_ptbl failed	\n");
+                return 0;
+            }
+        }
+        // go thru each page table entry and have the child match the parent's
         for (unsigned int pte_index = 0; pte_index < 1024; pte_index++) {
-            unsigned int pte = get_ptbl_entry(from_proc, pde_index, pte_index);
-            unsigned int page_index = ADDR_MASK(pte) / PAGESIZE;
-            set_ptbl_entry(from_proc, pde_index, pte_index, page_index, PT_PERM_FORK);
-            set_ptbl_entry(to_proc, pde_index, pte_index, page_index, PT_PERM_FORK);
+            // gets the ptbl_entry of the parent process
+            pte = get_ptbl_entry(from_proc, pde_index, pte_index);
+            page_index = ADDR_MASK(pte) / PAGESIZE;
+            // we want parent and child's pte to point to the same page
+            set_ptbl_entry(from_proc, pde_index, pte_index, page_index, PT_PERM_FORK); 
+            set_ptbl_entry(to_proc, pde_index, pte_index, page_index, PT_PERM_FORK); // correct
         }
     }
 

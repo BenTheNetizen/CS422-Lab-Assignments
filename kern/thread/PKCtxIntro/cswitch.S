@@ -25,4 +25,8 @@ cswitch:
 	movl	%ecx, 0(%esp)
 
 	xor	%eax, %eax
+
+	/* ret takes the return address from the stack and jumps to it (places into eip)
+		assembly doesn't allow direct memory to memory moves, so we have to use the stack and return to get
+	  the value from the stack into eip */
 	ret
