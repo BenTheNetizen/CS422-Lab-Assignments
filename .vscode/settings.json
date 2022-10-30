@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "serial.h": "c",
+        "console.h": "c"
+    }
+}

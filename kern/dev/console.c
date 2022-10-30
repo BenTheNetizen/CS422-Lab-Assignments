@@ -27,6 +27,7 @@ void cons_intr(int (*proc)(void))
 {
     int c;
 
+    // poll for any pending input characters from serial_proc_data(), adding characters to the buffer
     while ((c = (*proc)()) != -1) {
         if (c == 0)
             continue;

@@ -14,6 +14,7 @@ trap_cb_t TRAP_HANDLER[NUM_CPUS][256];
 
 void trap_init_array(void)
 {
+    // initializes the TRAP_HANDLER array
     KERN_ASSERT(inited == FALSE);
     memzero(&TRAP_HANDLER, sizeof(trap_cb_t) * 8 * 256);
     inited = TRUE;
@@ -38,6 +39,24 @@ void trap_init(unsigned int cpu_idx)
 
     // TODO: for CPU # [cpu_idx], register appropriate trap handler for each trap number,
     // with trap_handler_register function defined above.
+
+    // WHAT IS THE THIRD PARAMETER SUPPOSED TO BE?
+    
+    // for exceptions
+    for (int i = 0; i < 32; i++) {
+        trap_handler_register(cpu_idx, i, &exception_handler);
+    }
+
+    // for interrupts
+    for (int i = T_IRQ0; i < T_IRQ0 + 24; i++) {
+        trap_handler_register(cpu_idx, i, &interrupt_handler);
+    }
+
+    // for system calls
+    trap_handler_register(cpi_idx, T_SYSCALL, &syscall_handler);
+
+    
+
 
     KERN_INFO_CPU("Done.\n", cpu_idx);
     KERN_INFO_CPU("Enabling interrupts...\n", cpu_idx);

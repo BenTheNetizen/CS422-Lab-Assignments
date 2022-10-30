@@ -55,6 +55,7 @@ static void delay(void)
     inb(0x84);
 }
 
+// returns data from port if data is ready, -1 if not
 static int serial_proc_data(void)
 {
     if (!(inb(COM1 + COM_LSR) & COM_LSR_DATA))
@@ -68,6 +69,7 @@ void serial_intr(void)
         cons_intr(serial_proc_data);
 }
 
+// if character is newline, output newline and carriage return to serial port
 static int serial_reformatnewline(int c, int p)
 {
     int cr = '\r';
@@ -84,15 +86,18 @@ static int serial_reformatnewline(int c, int p)
         return 0;
 }
 
+// output character to serial port
 void serial_putc(char c)
 {
     if (!serial_exists)
         return;
 
     int i;
+    // wait for transmit buffer to be ready
     for (i = 0; !(inb(COM1 + COM_LSR) & COM_LSR_TXRDY) && i < 12800; i++)
         delay();
 
+    // transmit buffer ready, send character (and handles newline)
     if (!serial_reformatnewline(c, COM1 + COM_TX))
         outb(COM1 + COM_TX, c);
 }

@@ -9,10 +9,11 @@ extern volatile uint64_t tsc_per_ms;
 
 void gcc_inline spinlock_init(spinlock_t *lk)
 {
-    lk->lock_holder = NUM_CPUS + 1;
-    lk->lock = 0;
+    lk->lock_holder = NUM_CPUS + 1; // no one holds the lock
+    lk->lock = 0; // 0 means unlocked
 }
 
+// check if the lock is held by the current CPU
 bool gcc_inline spinlock_holding(spinlock_t *lk)
 {
     if (!lk->lock)
@@ -24,6 +25,8 @@ bool gcc_inline spinlock_holding(spinlock_t *lk)
 }
 
 #ifdef DEBUG_DEADLOCK
+// check if the lock is held by any CPU and if there is a deadlock
+// otherwise acquire the lock
 void spinlock_acquire_A(spinlock_t *lk)
 {
     uint64_t start_tsc = rdtsc();
@@ -40,6 +43,7 @@ void spinlock_acquire_A(spinlock_t *lk)
 #else   /* DEBUG_DEADLOCK */
 void gcc_inline spinlock_acquire_A(spinlock_t *lk)
 {
+    // if xchg returns 0, acquire has successfully acquired the lock
     while (xchg(&lk->lock, 1) != 0)
         pause();
 
