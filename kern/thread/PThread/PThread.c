@@ -7,8 +7,12 @@
 
 #include "import.h"
 
+spinlock_t tqueue_lock[NUM_CPUS];
 void thread_init(unsigned int mbi_addr)
 {
+    for (int i = 0; i < NUM_CPUS; i++) {
+        spinlock_init(&tqueue_lock[i]);
+    }
     tqueue_init(mbi_addr);
     set_curid(0);
     tcb_set_state(0, TSTATE_RUN);
@@ -21,13 +25,15 @@ void thread_init(unsigned int mbi_addr)
  */
 unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
 {
-    unsigned int pid = kctx_new(entry, id, quota);
+    unsigned int pid; 
+    spinlock_acquire(&tqueue_lock[get_pcpu_idx()]);
+    pid = kctx_new(entry, id, quota);
     if (pid != NUM_IDS) {
         tcb_set_cpu(pid, get_pcpu_idx());
         tcb_set_state(pid, TSTATE_READY);
         tqueue_enqueue(NUM_IDS + get_pcpu_idx(), pid);
     }
-
+    spinlock_release(&tqueue_lock[get_pcpu_idx()]);
     return pid;
 }
 
@@ -42,6 +48,10 @@ unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
  */
 void thread_yield(void)
 {
+    unsigned int cpu_idx = get_pcpu_idx();
+    int spinlock_status = spinlock_try_acquire(&tqueue_lock[cpu_idx]);
+    // spinlock_try_acquire returns 1 if acquire unsuccessful (the lock is held by another CPU)
+    if (spinlock_status == 1) return;
     unsigned int new_cur_pid;
     unsigned int old_cur_pid = get_curid();
 
@@ -53,6 +63,9 @@ void thread_yield(void)
     set_curid(new_cur_pid);
 
     if (old_cur_pid != new_cur_pid) {
+        spinlock_release(&tqueue_lock[cpu_idx]);
         kctx_switch(old_cur_pid, new_cur_pid);
+    } else {
+        spinlock_release(&tqueue_lock[cpu_idx]);
     }
 }

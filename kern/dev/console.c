@@ -16,8 +16,12 @@ struct {
     uint32_t rpos, wpos;
 } cons;
 
+// spinlock for the console
+spinlock_t cons_lock;
+
 void cons_init()
 {
+    spinlock_init(&cons_lock);
     memset(&cons, 0x0, sizeof(cons));
     serial_init();
     video_init();
@@ -25,8 +29,8 @@ void cons_init()
 
 void cons_intr(int (*proc)(void))
 {
+    spinlock_acquire(&cons_lock);
     int c;
-
     // poll for any pending input characters from serial_proc_data(), adding characters to the buffer
     while ((c = (*proc)()) != -1) {
         if (c == 0)
@@ -35,10 +39,12 @@ void cons_intr(int (*proc)(void))
         if (cons.wpos == CONSOLE_BUFFER_SIZE)
             cons.wpos = 0;
     }
+    spinlock_release(&cons_lock);
 }
 
 char cons_getc(void)
 {
+    spinlock_acquire(&cons_lock);
     int c;
 
     // poll for any pending input characters,
@@ -47,13 +53,15 @@ char cons_getc(void)
     serial_intr();
     keyboard_intr();
 
-    // grab the next character from the input buffer.
+    // grab the next character from the input buffer, or return 0 if none waiting.
     if (cons.rpos != cons.wpos) {
         c = cons.buf[cons.rpos++];
         if (cons.rpos == CONSOLE_BUFFER_SIZE)
             cons.rpos = 0;
+        spinlock_release(&cons_lock);
         return c;
     }
+    spinlock_release(&cons_lock);
     return 0;
 }
 

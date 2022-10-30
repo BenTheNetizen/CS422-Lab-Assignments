@@ -12,6 +12,7 @@ struct dprintbuf {
     char buf[CONSOLE_BUFFER_SIZE];
 };
 
+// print a string to the console
 static void cputs(const char *str)
 {
     while (*str) {
@@ -20,16 +21,18 @@ static void cputs(const char *str)
     }
 }
 
+// adds a character to the buffer and flushes (outputs) it if it is full
 static void putch(int ch, struct dprintbuf *b)
 {
     b->buf[b->idx++] = ch;
     if (b->idx == CONSOLE_BUFFER_SIZE - 1) {
-        b->buf[b->idx] = 0;
+        b->buf[b->idx] = 0; // null terminate
         cputs(b->buf);
         b->idx = 0;
     }
     b->cnt++;
 }
+
 
 int vdprintf(const char *fmt, va_list ap)
 {

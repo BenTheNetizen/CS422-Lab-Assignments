@@ -53,7 +53,7 @@ void trap_init(unsigned int cpu_idx)
     }
 
     // for system calls
-    trap_handler_register(cpi_idx, T_SYSCALL, &syscall_handler);
+    trap_handler_register(cpu_idx, T_SYSCALL, &syscall_dispatch);
 
     
 
