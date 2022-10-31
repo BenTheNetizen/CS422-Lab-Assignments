@@ -135,6 +135,8 @@ void trap(tf_t *tf)
 
     unsigned int last_pid = last_active[cpu_idx];
 
+    // is last_pid != 0, then last_pid (before the trap) was from user-space
+    // and thus in that event, we are now in the kernel
     if (last_pid != 0)
     {
         set_pdir_base(0);  // switch to the kernel's page table
@@ -152,6 +154,7 @@ void trap(tf_t *tf)
     
     if (last_pid != 0)
     {
+        // switch back to the user's page table
         kstack_switch(cur_pid);
         set_pdir_base(cur_pid);
         last_active[cpu_idx] = last_pid;

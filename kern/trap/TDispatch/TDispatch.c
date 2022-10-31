@@ -62,6 +62,7 @@ void syscall_dispatch(tf_t *tf)
         sys_yield(tf);
         break;
     case SYS_produce:
+        // enable interrupts only during execution of sys_produce
         intr_local_enable();
         sys_produce(tf);
         intr_local_disable();
