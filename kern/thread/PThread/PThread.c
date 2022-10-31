@@ -78,12 +78,11 @@ void thread_yield(void)
     }
 }
 
-// void sched_update(){
-//     int cpu_idx = get_pcpu_idx();
-//     elapsed[cpu_idx] += MS_PER_LAPIC_INTR;
-//     if (elapsed[cpu_idx] >= SCHED_SLICE){
-//         elapsed[cpu_idx] = 0;
-//         thread_yield();
-//     }
-    
-// }
+void sched_update(){
+    int cpu_idx = get_pcpu_idx();
+    elapsed[cpu_idx] += MS_PER_LAPIC_INTR;
+    if (elapsed[cpu_idx] >= SCHED_SLICE){
+        elapsed[cpu_idx] = 0;
+        thread_yield();
+    }
+}
