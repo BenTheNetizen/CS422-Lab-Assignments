@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "serial.h": "c",
-        "console.h": "c"
+        "console.h": "c",
+        "lapic.h": "c"
     }
 }

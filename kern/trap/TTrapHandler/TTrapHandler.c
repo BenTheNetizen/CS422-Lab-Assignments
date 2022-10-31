@@ -94,7 +94,10 @@ static int spurious_intr_handler(void)
 
 static int timer_intr_handler(void)
 {
+    // switch to another thread in every SCHED_SLICE ms, 
+    // defined in kern/lib/thread.h
     intr_eoi();
+    sched_update();
     return 0;
 }
 

@@ -7,6 +7,7 @@ void thread_init(unsigned int mbi_addr);
 unsigned int thread_spawn(void *entry, unsigned int id,
                           unsigned int quota);
 void thread_yield(void);
+void sched_update(void);
 
 #endif  /* _KERN_ */
 

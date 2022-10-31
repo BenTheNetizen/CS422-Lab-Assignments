@@ -7,10 +7,15 @@
 
 #include "import.h"
 
+#define MS_PER_LAPIC_TIMER_INTR 1000 / LAPIC_TIMER_INTR_FREQ 
+
 spinlock_t tqueue_lock[NUM_CPUS];
+unsigned int ms_elapsed[NUM_CPUS];
+
 void thread_init(unsigned int mbi_addr)
 {
     for (int i = 0; i < NUM_CPUS; i++) {
+        ms_elapsed[i] = 0;
         spinlock_init(&tqueue_lock[i]);
     }
     tqueue_init(mbi_addr);
@@ -49,12 +54,13 @@ unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
 void thread_yield(void)
 {
     unsigned int cpu_idx = get_pcpu_idx();
+    unsigned int new_cur_pid;
+    unsigned int old_cur_pid; 
     int spinlock_status = spinlock_try_acquire(&tqueue_lock[cpu_idx]);
     // spinlock_try_acquire returns 1 if acquire unsuccessful (the lock is held by another CPU)
     if (spinlock_status == 1) return;
-    unsigned int new_cur_pid;
-    unsigned int old_cur_pid = get_curid();
-
+    
+    old_cur_pid = get_curid();
     tcb_set_state(old_cur_pid, TSTATE_READY);
     tqueue_enqueue(NUM_IDS + get_pcpu_idx(), old_cur_pid);
 
@@ -67,5 +73,15 @@ void thread_yield(void)
         kctx_switch(old_cur_pid, new_cur_pid);
     } else {
         spinlock_release(&tqueue_lock[cpu_idx]);
+    }
+}
+
+void sched_update(void) {
+    unsigned int cpu_idx = get_pcpu_idx();
+    ms_elapsed[cpu_idx] += MS_PER_LAPIC_TIMER_INTR;
+    if (ms_elapsed[cpu_idx] >= SCHED_SLICE) {
+        ms_elapsed[cpu_idx] = 0;
+        thread_yield();
+        return;
     }
 }
