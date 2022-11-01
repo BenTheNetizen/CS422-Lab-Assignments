@@ -6,10 +6,121 @@
 #include <lib/syscall.h>
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <lib/spinlock.h>
 
 #include "import.h"
 
+#define MAX_BUF_SIZE 4
+
 static char sys_buf[NUM_IDS][PAGESIZE];
+
+typedef struct {
+    unsigned int val[MAX_BUF_SIZE];
+    unsigned int count = 0;
+    unsigned int next_in = 0;
+    unsigned int next_out = 0;
+} bounded_buffer_t;
+
+typedef struct {
+    unsigned int val[NUM_IDS];
+    unsigned int count = 0;
+    unsigned int next_in = 0;
+    unsigned int next_out = 0;
+} sleep_queue_t;
+
+bounded_buffer_t bounded_buffer;
+sleep_queue_t sleep_queue;
+// unsigned int bounded_buffer[MAX_SIZE];
+// unsigned int sleep_queue[NUM_IDS];
+// unsigned int sleep_queue_count = 0;
+spinlock_t buf_lock;
+spinlock_t sleep_queue_lock; 
+spinlock_init(&buf_lock);
+
+bool isEmpty(bounded_buffer_t *arr) { return arr.count == 0; }
+
+bool isFull(bounded_buffer_t *arr) { return arr.count == MAX_BUF_SIZE; }
+
+unsigned int buff_remove(){
+    spinlock_acquire(&buf_lock);
+    while (isEmpty(&bounded_buffer)){
+        thread_wait();
+    }
+    unsigned int ret = bounded_buffer.val[bounded_buffer.next_out];
+    bounded_buffer.count--;
+    bounded_buffer.next_out = (bounded_buffer.next_out + 1) % MAX_BUF_SIZE;
+
+    thread_signal();
+    spinlock_release(&buf_lock);
+    return ret;
+}
+
+unsigned int sleep_queue_remove() {
+    spinlock_acquire(&sleep_queue_lock);
+    if (isEmpty(&sleep_queue)) return -1;
+    unsigned int ret = sleep_queue.val[sleep_queue.next_out];
+    sleep_queue.count--;
+    sleep_queue.next_out = (sleep_queue.next_out + 1) % NUM_IDS;
+    spinlock_release(&sleep_queue_lock);
+    return ret;
+}
+
+
+void buff_insert(unsigned int item){
+    spinlock_acquire(&buf_lock);
+    while (isFull(&bounded_buffer)){
+        thread_wait();
+    }
+    bounded_buffer.val[next_in] = item;
+    bounded_buffer.count++;
+    bounded_buffer.next_in = (bounded_buffer.next_in + 1) % MAX_BUF_SIZE;
+
+    thread_signal();
+    spinlock_release(&buf_lock);
+    return;
+}
+
+void sleep_queue_insert(unsigned int item) {
+    spinlock_acquire(&sleep_queue_lock);
+    if (isFull(&sleep_queue)) return;
+    sleep_queue.val[next_in] = item;
+    sleep_queue.count++;
+    sleep_queue.next_in = (sleep_queue.next_in + 1) % NUM_IDS;
+
+    spinlock_release(&sleep_queue_lock);
+    return;
+}
+
+void thread_wait(){
+    spinlock_release(&buf_lock);
+    spinlock_acquire(&sleep_queue_lock);
+    
+    // add current thread to sleep queue
+    unsigned int pid = get_curid();
+    sleep_queue_insert(pid);
+    thread_yield();
+
+    // spinlocks
+    spinlock_release(&sleep_queue_lock);
+
+    // WE NEED TO MAKE SURE THAT THE CALLER OF WAIT ACQUIRES THE SPINLOCK
+    spinlock_acquire(&buf_lock); // I DONT THINK THIS IS CORRECT
+}
+
+void thread_signal() {
+    spinlock_acquire(&sleep_queue_lock);
+
+    // remove thread from sleep queue 
+    unsigned int new_cur_pid = sleep_queue_remove();
+    unsigned int old_cur_pid = get_curid();
+    if (new_cur_pid == -1) {
+        dprintf("SLEEP QUEUE REMOVED RETURNED -1");
+        return;
+    }
+    // turn on thread
+    thread_turn_on(new_cur_pid, old_cur_pid);
+    spinlock_release(&sleep_queue_lock);
+}
 
 /**
  * Copies a string from user into buffer and prints it to the screen.

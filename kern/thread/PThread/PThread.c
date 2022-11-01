@@ -25,7 +25,7 @@ void thread_init(unsigned int mbi_addr)
 
 /**
  * Allocates a new child thread context, sets the state of the new child thread
- * to ready, and pushes it to the ready queue.
+ * to ready, and pushes pit to the ready queue.
  * It returns the child thread id.
  */
 unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
@@ -78,6 +78,24 @@ void thread_yield(void)
     }
 }
 
+void thread_turn_on(unsigned int new_cur_pid, unsigned int old_cur_pid) {
+    unsigned int cpu_idx = get_pcpu_idx();
+
+    int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
+
+    if (status == 1) return;
+
+    tcb_set_state(new_cur_pid, TSTATE_RUN);
+    set_curid(new_cur_pid);
+
+    if (old_cur_pid != new_cur_pid) {
+        spinlock_release(&thread_lock[cpu_idx]);
+        kctx_switch(old_cur_pid, new_cur_pid);
+    }
+    else{
+        spinlock_release(&thread_lock[cpu_idx]);
+    }
+}
 void sched_update(){
     int cpu_idx = get_pcpu_idx();
     elapsed[cpu_idx] += MS_PER_LAPIC_INTR;
