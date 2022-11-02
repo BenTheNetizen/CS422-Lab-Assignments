@@ -7,12 +7,31 @@
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
 #include <lib/spinlock.h>
+#include <thread/PTQueueIntro/export.h>
 
 #include "import.h"
 
 #define MAX_BUF_SIZE 4
 
 static char sys_buf[NUM_IDS][PAGESIZE];
+
+typedef struct {
+    unsigned int queue[4];
+    unsigned int next_in;
+    unsigned int next_out;
+    unsigned int count;
+    spinlock_t lk;
+} cv_t;
+
+typedef struct {
+    cv_t producer;
+    cv_t consumer;
+    unsigned int items[MAX_BUF_SIZE];
+    spinlock_t lk;
+    unsigned int next_in;
+    unsigned int next_out;
+    unsigned int count;
+} bbq_t;
 
 typedef struct bounded_buffer_t {
     unsigned int val[MAX_BUF_SIZE];
@@ -28,6 +47,8 @@ typedef struct sleep_queue_t {
     unsigned int next_out;
 } sleep_queue_t;
 
+static bbq_t bbq;
+
 static bounded_buffer_t bounded_buffer;
 
 static sleep_queue_t sleep_queue;
@@ -35,71 +56,79 @@ static sleep_queue_t sleep_queue;
 static spinlock_t buf_lock;
 static spinlock_t sleep_queue_lock; 
 
+void cv_init(cv_t *cv) {
+    cv->count = 0;
+    cv->next_in = 0;
+    cv->next_out = 0;
+    spinlock_init(&(cv->lk));
+}
+
 
 void bbq_init() {
-    spinlock_init(&buf_lock);
-    spinlock_init(&sleep_queue_lock);
-    bounded_buffer.count = 0;
-    bounded_buffer.next_in = 0;
-    bounded_buffer.next_out = 0;
+    spinlock_init(&(bbq.lk));
+    bbq.count = 0;
+    bbq.next_in = 0;
+    bbq.next_out = 0;
 
-    sleep_queue.count = 0;
-    sleep_queue.next_in = 0;
-    sleep_queue.next_out = 0;
+    cv_init(&(bbq.producer));
+    cv_init(&(bbq.consumer));
     return;
 }
 
 
-bool isEmpty(bounded_buffer_t *arr) { return arr->count == 0; }
-bool isEmptySQ(sleep_queue_t *arr) { return arr->count == 0; }
-bool isFull(bounded_buffer_t *arr) { return arr->count == MAX_BUF_SIZE; }
-bool isFullSQ(sleep_queue_t *arr) { return arr->count == MAX_BUF_SIZE; }
+bool isEmptyCV(cv_t *cv) { return cv->count == 0; }
+bool isEmptyBBQ(bbq_t *bbq) { return bbq->count == 0; }
+bool isFullCV(cv_t *cv) { return cv->count == MAX_BUF_SIZE; }
+bool isFullBBQ(bbq_t *bbq) { return bbq->count == MAX_BUF_SIZE; }
 
-void sleep_queue_insert(unsigned int item) {
-    spinlock_acquire(&sleep_queue_lock);
-    if (isFullSQ(&sleep_queue)) return;
-    sleep_queue.val[sleep_queue.next_in] = item;
-    sleep_queue.count++;
-    sleep_queue.next_in = (sleep_queue.next_in + 1) % NUM_IDS;
+void cv_insert(unsigned int item, cv_t *cv) {
+    spinlock_acquire(&(cv->lk));
+    if (isFullCV(cv)) {
+        spinlock_release(&(cv->lk));
+        return;
+    }
+    cv->queue[cv->next_in] = item;
+    cv->count++;
+    cv->next_in = (cv->next_in + 1) % NUM_IDS;
 
-    spinlock_release(&sleep_queue_lock);
+    spinlock_release(&(cv->lk));
     return;
 }
 
-unsigned int sleep_queue_remove() {
-    spinlock_acquire(&sleep_queue_lock);
+unsigned int cv_remove(cv_t *cv) {
+    spinlock_acquire(&(cv->lk));
     dprintf("[sleep_queue_remove] acquired sleep_queue_lock\n");
-    if (isEmptySQ(&sleep_queue)) {
-        spinlock_release(&sleep_queue_lock);
+    if (isEmptyCV(cv)) {
+        spinlock_release(&(cv->lk));
         return -1;
     } 
         
-    unsigned int ret = sleep_queue.val[sleep_queue.next_out];
-    sleep_queue.count--;
-    sleep_queue.next_out = (sleep_queue.next_out + 1) % NUM_IDS;
-    spinlock_release(&sleep_queue_lock);
+    unsigned int ret = cv->queue[cv->next_out];
+    cv->count--;
+    cv->next_out = (cv->next_out + 1) % NUM_IDS;
+    spinlock_release(&(cv->lk));
     return ret;
 }
 
-void thread_wait(){
+void thread_wait(cv_t *cv){
     dprintf("[THREAD_WAIT] \n");
-    spinlock_release(&buf_lock);
+    spinlock_release(&(bbq.lk));
     
     // add current thread to sleep queue
     unsigned int pid = get_curid();
-    sleep_queue_insert(pid);
+    cv_insert(pid, cv);
 
     // take thread off execution and turns on a thread in the ready list
     thread_wait_helper();
 
     // WE NEED TO MAKE SURE THAT THE CALLER OF WAIT ACQUIRES THE SPINLOCK
-    spinlock_acquire(&buf_lock); // I DONT THINK THIS IS CORRECT
+    spinlock_acquire(&(bbq.lk)); // I DONT THINK THIS IS CORRECT
 }
 
-void thread_signal() {
+void thread_signal(cv_t *cv) {
     dprintf("[THREAD_SIGNAL] \n");
     // remove thread from sleep queue and add to the ready list
-    unsigned int new_cur_pid = sleep_queue_remove();
+    unsigned int new_cur_pid = cv_remove(cv);
     dprintf("[THREAD_SIGNAL] new_cur_pid: %d\n", new_cur_pid);
     if (new_cur_pid == -1) {
         dprintf("[THREAD_SIGNAL] SLEEP QUEUE REMOVED RETURNED -1, is empty\n");
@@ -110,42 +139,42 @@ void thread_signal() {
     thread_signal_helper(new_cur_pid);
 }
 unsigned int buff_remove(){
-    spinlock_acquire(&buf_lock);
+    spinlock_acquire(&(bbq.lk));
     dprintf("[BUFF_REMOVE] acquired buf_lock\n");
-    while (isEmpty(&bounded_buffer)){
+    while (isEmptyBBQ(&bbq)){
         dprintf("[BUFF_REMOVE] buffer is empty, waiting\n");
-        thread_wait();
+        thread_wait(&(bbq.consumer));
     }
-    unsigned int ret = bounded_buffer.val[bounded_buffer.next_out];
-    bounded_buffer.count--;
-    bounded_buffer.next_out = (bounded_buffer.next_out + 1) % MAX_BUF_SIZE;
+    unsigned int ret = bbq.items[bbq.next_out];
+    bbq.count--;
+    bbq.next_out = (bbq.next_out + 1) % MAX_BUF_SIZE;
     for (int i = 0; i < 4; i++) {
-        dprintf("[BUFF_REMOVE] sleep queue at index %d is %ld\n", i, sleep_queue.val[i]);
+        dprintf("[BUFF_REMOVE] sleep queue at index %d is %ld\n", i, bbq.consumer.queue[i]);
     }
-    thread_signal();
-    spinlock_release(&buf_lock);
+    thread_signal(&(bbq.producer));
+    spinlock_release(&(bbq.lk));
     dprintf("[BUFF_REMOVE] remove %ld\n", ret);
     return ret;
 }
 
 
 void buff_insert(unsigned int item){
-    spinlock_acquire(&buf_lock);
+    spinlock_acquire(&(bbq.lk));
     dprintf("[BUFF_INSERT] insert %ld\n", item);
-    while (isFull(&bounded_buffer)){
+    while (isFullBBQ(&bbq)){
         dprintf("[BUFF_INSERT] buffer is full, waiting\n");
-        thread_wait();
+        thread_wait(&(bbq.producer));
     }
     for (int i = 0; i < 4; i++) {
-        dprintf("[BUFF_INSERT] sleep queue at index %d is %ld\n", i, sleep_queue.val[i]);
+        dprintf("[BUFF_INSERT] sleep queue at index %d is %ld\n", i, bbq.producer.queue[i]);
     }
     dprintf("[BUFF_INSERT] buffer is not full, inserting %ld\n", item);
-    bounded_buffer.val[bounded_buffer.next_in] = item;
-    bounded_buffer.count++;
-    bounded_buffer.next_in = (bounded_buffer.next_in + 1) % MAX_BUF_SIZE;
+    bbq.items[bbq.next_in] = item;
+    bbq.count++;
+    bbq.next_in = (bbq.next_in + 1) % MAX_BUF_SIZE;
 
-    thread_signal();
-    spinlock_release(&buf_lock);
+    thread_signal(&(bbq.consumer));
+    spinlock_release(&(bbq.lk));
     return;
 }
 
