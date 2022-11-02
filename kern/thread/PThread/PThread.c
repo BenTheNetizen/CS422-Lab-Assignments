@@ -95,7 +95,7 @@ void thread_wait_helper(unsigned cpu_idx) {
 
     tcb_set_state(old_cur_pid, TSTATE_SLEEP);
     dprintf("[THREAD_WAIT_HELPER]: set old_cur_pid %d to sleep\n", old_cur_pid);
-    new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
+    new_cur_pid = tqueue_dequeue(NUM_IDS + cpu_idx);
 
     // THERE SHOULD ALWAYS AT LEAST BE AN IDLE QUEUE IN THE THREAD QUEUE
     if (new_cur_pid == NUM_IDS) {

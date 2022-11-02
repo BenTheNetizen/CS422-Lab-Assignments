@@ -48,6 +48,7 @@ typedef struct sleep_queue_t {
 } sleep_queue_t;
 
 static bbq_t bbq;
+static currThread[NUM_CPUS];
 
 static bounded_buffer_t bounded_buffer;
 
