@@ -74,6 +74,7 @@ unsigned int tqueue_dequeue(unsigned int chid)
  * Removes the TCB #pid from the queue #chid.
  * Hint: there are many cases in this function.
  */
+
 void tqueue_remove(unsigned int chid, unsigned int pid)
 {
     unsigned int prev, next;

@@ -48,7 +48,7 @@ typedef struct sleep_queue_t {
 } sleep_queue_t;
 
 static bbq_t bbq;
-static currThread[NUM_CPUS];
+static unsigned int currThread[NUM_CPUS];
 
 static bounded_buffer_t bounded_buffer;
 
@@ -64,7 +64,6 @@ void cv_init(cv_t *cv) {
     spinlock_init(&(cv->lk));
 }
 
-
 void bbq_init() {
     spinlock_init(&(bbq.lk));
     bbq.count = 0;
@@ -73,6 +72,11 @@ void bbq_init() {
 
     cv_init(&(bbq.producer));
     cv_init(&(bbq.consumer));
+
+    // init the currThread array
+    for (unsigned int i = 0; i < NUM_CPUS; i++) {
+        currThread[i] = -1;
+    }
     return;
 }
 
@@ -111,66 +115,63 @@ unsigned int cv_remove(cv_t *cv) {
     return ret;
 }
 
-void thread_wait(cv_t *cv, unsigned int cpu_idx){
-    dprintf("[THREAD_WAIT] \n");
+void thread_wait(cv_t *cv){
     spinlock_release(&(bbq.lk));
     
     // add current thread to sleep queue
     unsigned int pid = get_curid();
-    cv_insert(pid, cv);
+    cv_insert(pid, cv); // atomic instruction
 
-    // take thread off execution and turns on a thread in the ready list
-    thread_wait_helper(cpu_idx);
+    // take thread off execution and turns on a thread in the ready list of other CPU
+    //thread_wait_helper();
+    dprintf("[THREAD_WAIT] yield to thread on ready list\n");
+    thread_wait_helper();
 
-    // WE NEED TO MAKE SURE THAT THE CALLER OF WAIT ACQUIRES THE SPINLOCK
-    spinlock_acquire(&(bbq.lk)); // I DONT THINK THIS IS CORRECT
+    // acquire spinlock again after being woken up by thread_wait from other CPU
+    spinlock_acquire(&(bbq.lk));
 }
 
 void thread_signal(cv_t *cv) {
     dprintf("[THREAD_SIGNAL] \n");
     // remove thread from sleep queue and add to the ready list
     unsigned int new_cur_pid = cv_remove(cv);
-    dprintf("[THREAD_SIGNAL] new_cur_pid: %d\n", new_cur_pid);
+    dprintf("[THREAD_SIGNAL] removed pid %d from producer sleep queue\n", new_cur_pid);
     if (new_cur_pid == -1) {
-        dprintf("[THREAD_SIGNAL] SLEEP QUEUE REMOVED RETURNED -1, is empty\n");
+        dprintf("[THREAD_SIGNAL] SLEEP QUEUE is empty\n");
         return;
     }
-    
-    // turn on thread
+    // take thread of sleep list and put on ready list of other CPU
     thread_signal_helper(new_cur_pid);
 }
+
 unsigned int buff_remove(){
     spinlock_acquire(&(bbq.lk));
-    dprintf("[BUFF_REMOVE] acquired buf_lock\n");
-    unsigned int target_cpu_idx = 2;
     while (isEmptyBBQ(&bbq)){
-        dprintf("[BUFF_REMOVE] buffer is empty, waiting\n");
-        thread_wait(&(bbq.consumer), target_cpu_idx);
+        // dprintf("[BUFF_REMOVE] buffer is empty, waiting\n");
+        thread_wait(&(bbq.consumer));
     }
     unsigned int ret = bbq.items[bbq.next_out];
     bbq.count--;
     bbq.next_out = (bbq.next_out + 1) % MAX_BUF_SIZE;
-    for (int i = 0; i < 4; i++) {
-        dprintf("[BUFF_REMOVE] sleep queue at index %d is %ld\n", i, bbq.consumer.queue[i]);
-    }
+    // for (int i = 0; i < 4; i++) {
+    //     dprintf("[BUFF_REMOVE] sleep queue at index %d is %ld\n", i, bbq.consumer.queue[i]);
+    // }
     thread_signal(&(bbq.producer));
     spinlock_release(&(bbq.lk));
-    dprintf("[BUFF_REMOVE] remove %ld\n", ret);
+    dprintf("[BUFF_REMOVE] removed %ld\n", ret);
     return ret;
 }
 
 
 void buff_insert(unsigned int item){
     spinlock_acquire(&(bbq.lk));
-    dprintf("[BUFF_INSERT] insert %ld\n", item);
-    unsigned int target_cpu_idx = 1;
     while (isFullBBQ(&bbq)){
         dprintf("[BUFF_INSERT] buffer is full, waiting\n");
-        thread_wait(&(bbq.producer), target_cpu_idx);
+        thread_wait(&(bbq.producer));
     }
-    for (int i = 0; i < 4; i++) {
-        dprintf("[BUFF_INSERT] sleep queue at index %d is %ld\n", i, bbq.producer.queue[i]);
-    }
+    // for (int i = 0; i < 4; i++) {
+    //     dprintf("[BUFF_INSERT] sleep queue at index %d is %ld\n", i, bbq.producer.queue[i]);
+    // }
     dprintf("[BUFF_INSERT] buffer is not full, inserting %ld\n", item);
     bbq.items[bbq.next_in] = item;
     bbq.count++;
@@ -328,23 +329,23 @@ void sys_yield(tf_t *tf)
 void sys_produce(tf_t *tf)
 {
     unsigned int i;
-    intr_local_disable();
     for (i = 0; i < 5; i++) {
+        intr_local_disable();
         KERN_DEBUG("CPU %d: Process %d: Produced %d\n", get_pcpu_idx(), get_curid(), i);
         buff_insert(i);
+        intr_local_enable();
     }
-    intr_local_enable();
     syscall_set_errno(tf, E_SUCC);
 }
 
 void sys_consume(tf_t *tf)
 {
     unsigned int i;
-    intr_local_disable();
     for (i = 0; i < 5; i++) {
+        intr_local_disable();
         KERN_DEBUG("CPU %d: Process %d: Consumed %d\n", get_pcpu_idx(), get_curid(), i);
         buff_remove(i);
+        intr_local_enable();
     }
-    intr_local_enable();
     syscall_set_errno(tf, E_SUCC);
 }

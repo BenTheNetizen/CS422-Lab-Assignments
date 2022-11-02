@@ -72,6 +72,7 @@ void thread_yield(void)
 
     if (old_cur_pid != new_cur_pid) {
         spinlock_release(&thread_lock[cpu_idx]);
+        dprintf("[thread_yield]: switch from %d to %d", old_cur_pid, new_cur_pid);
         kctx_switch(old_cur_pid, new_cur_pid);
     }
     else{
@@ -79,68 +80,54 @@ void thread_yield(void)
     }
 }
 
-void thread_wait_helper(unsigned cpu_idx) {
-    // turn off old thread and turn on thread off the ready queue
-    //unsigned int cpu_idx = get_pcpu_idx();
-    dprintf("DEBUG: cpu_idx: %ld\n", cpu_idx);
-    // CPU 1
+void thread_wait_helper() {
+    unsigned int cpu_idx = get_pcpu_idx();
+
     unsigned int new_cur_pid;
     unsigned int old_cur_pid = get_curid();
+
     int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
 
-    if (status == 1) {
-        dprintf("[THREAD_WAIT_HELPER]: spinlock is already acquired\n");
-        return;
-    }
+    if (status == 1) return;
 
     tcb_set_state(old_cur_pid, TSTATE_SLEEP);
-    dprintf("[THREAD_WAIT_HELPER]: set old_cur_pid %d to sleep\n", old_cur_pid);
-    new_cur_pid = tqueue_dequeue(NUM_IDS + cpu_idx);
+    // DO NOT WANT TO QUEUE UP THIS THREAD
+    //tqueue_enqueue(NUM_IDS + get_pcpu_idx(), old_cur_pid);
 
-    // THERE SHOULD ALWAYS AT LEAST BE AN IDLE QUEUE IN THE THREAD QUEUE
-    if (new_cur_pid == NUM_IDS) {
-        dprintf("[THREAD_WAIT_HELPER]: no thread to run\n");
-        spinlock_release(&thread_lock[cpu_idx]);
-        return;
-    }
-
+    new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
     if (old_cur_pid != new_cur_pid) {
         spinlock_release(&thread_lock[cpu_idx]);
-        dprintf("[THREAD_WAIT_HELPER]: switch from %d to %d\n", old_cur_pid, new_cur_pid);
-        kctx_switch(old_cur_pid, new_cur_pid); // THIS LINE TRIGGERS A THREAD TO SLEEP
-        // NOTE THAT IF THERE ARE NO "THREADS" ON THE READY LIST, THEN THE IDLE THREAD WILL RUN
+        dprintf("[thread_yield]: switch from %d to %d", old_cur_pid, new_cur_pid);
+        kctx_switch(old_cur_pid, new_cur_pid);
     }
     else{
         spinlock_release(&thread_lock[cpu_idx]);
     }
-}
+    // // turn off old thread and turn on thread off the ready queue
+    // //unsigned int cpu_idx = get_pcpu_idx();
+    // unsigned int cpu_idx = get_pcpu_idx();
+    // cpu_idx = cpu_idx == 1 ? 2 : 1; // swap to other cpu
+    // dprintf("[THREAD_WAIT_HELPER] DEBUG: cpu_idx: %ld\n", cpu_idx);
+    // // CPU 1
+    // unsigned int new_cur_pid;
+    // unsigned int old_cur_pid = get_curid();
+    // int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
 
-void thread_signal_helper(unsigned int pid) {
-    // add thread from sleep list to the ready queue
-    // always CPU idx 2
-    unsigned int cpu_idx = get_pcpu_idx();
-    dprintf("DEBUG: cpu_idx: %ld\n", cpu_idx);
-    unsigned int new_cur_pid;
+    // if (status == 1) {
+    //     dprintf("[THREAD_WAIT_HELPER]: spinlock is already acquired\n");
+    //     return;
+    // }
 
-    int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
-    if (status == 1) {
-        dprintf("thread_signal_helper: spinlock is already acquired\n");
-        return;
-    }
-    unsigned int old_cur_pid = get_curid();
+    // tcb_set_state(old_cur_pid, TSTATE_SLEEP);
+    // dprintf("[THREAD_WAIT_HELPER]: set old_cur_pid %d to sleep\n", old_cur_pid);
+    // new_cur_pid = tqueue_dequeue(NUM_IDS + cpu_idx);
 
-    tcb_set_state(pid, TSTATE_READY);
-    dprintf("[THREAD_SIGNAL_HELPER]: append pid %d to ready\n", pid);
-    // enqueue the waiting thread to the ready list
-    tqueue_enqueue(NUM_IDS + get_pcpu_idx(), pid);
-    spinlock_release(&thread_lock[cpu_idx]);
-    // new_cur_pid = tqueue_dequeue(NUM_IDS + get_pcpu_idx());
     // // THERE SHOULD ALWAYS AT LEAST BE AN IDLE QUEUE IN THE THREAD QUEUE
     // if (new_cur_pid == NUM_IDS) {
-    //     dprintf("[THREAD_SIGNAL_HELPER]: no thread to run\n");
+    //     dprintf("[THREAD_WAIT_HELPER]: no thread to run\n");
     //     spinlock_release(&thread_lock[cpu_idx]);
     //     return;
     // }
@@ -150,13 +137,31 @@ void thread_signal_helper(unsigned int pid) {
 
     // if (old_cur_pid != new_cur_pid) {
     //     spinlock_release(&thread_lock[cpu_idx]);
-    //     dprintf("[THREAD_SIGNAL_HELPER]: switch from %d to %d\n", old_cur_pid, new_cur_pid);
+    //     dprintf("[THREAD_WAIT_HELPER]: switch from %d to %d\n", old_cur_pid, new_cur_pid);
     //     kctx_switch(old_cur_pid, new_cur_pid); // THIS LINE TRIGGERS A THREAD TO SLEEP
     //     // NOTE THAT IF THERE ARE NO "THREADS" ON THE READY LIST, THEN THE IDLE THREAD WILL RUN
     // }
     // else{
     //     spinlock_release(&thread_lock[cpu_idx]);
     // }
+}
+
+void thread_signal_helper(unsigned int pid) {
+    // pid is the thread to add from sleep queue to ready queue
+    unsigned int cpu_idx = get_pcpu_idx();
+    cpu_idx = cpu_idx == 1 ? 2 : 1; // swap to other cpu
+    unsigned int new_cur_pid;
+
+    int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
+    if (status == 1) {
+        dprintf("thread_signal_helper: spinlock is already acquired\n");
+        return;
+    }
+    tcb_set_state(pid, TSTATE_READY);
+    dprintf("[THREAD_SIGNAL_HELPER]: append pid %d to CPU's %d ready\n", pid, cpu_idx);
+    // enqueue the waiting thread to the ready list
+    tqueue_enqueue(NUM_IDS + cpu_idx, pid);
+    spinlock_release(&thread_lock[cpu_idx]);
 }
 
 
