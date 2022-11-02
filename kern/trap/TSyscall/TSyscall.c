@@ -110,7 +110,7 @@ unsigned int cv_remove(cv_t *cv) {
     return ret;
 }
 
-void thread_wait(cv_t *cv){
+void thread_wait(cv_t *cv, unsigned int cpu_idx){
     dprintf("[THREAD_WAIT] \n");
     spinlock_release(&(bbq.lk));
     
@@ -119,7 +119,7 @@ void thread_wait(cv_t *cv){
     cv_insert(pid, cv);
 
     // take thread off execution and turns on a thread in the ready list
-    thread_wait_helper();
+    thread_wait_helper(cpu_idx);
 
     // WE NEED TO MAKE SURE THAT THE CALLER OF WAIT ACQUIRES THE SPINLOCK
     spinlock_acquire(&(bbq.lk)); // I DONT THINK THIS IS CORRECT
@@ -141,9 +141,10 @@ void thread_signal(cv_t *cv) {
 unsigned int buff_remove(){
     spinlock_acquire(&(bbq.lk));
     dprintf("[BUFF_REMOVE] acquired buf_lock\n");
+    unsigned int target_cpu_idx = 2;
     while (isEmptyBBQ(&bbq)){
         dprintf("[BUFF_REMOVE] buffer is empty, waiting\n");
-        thread_wait(&(bbq.consumer));
+        thread_wait(&(bbq.consumer), target_cpu_idx);
     }
     unsigned int ret = bbq.items[bbq.next_out];
     bbq.count--;
@@ -161,9 +162,10 @@ unsigned int buff_remove(){
 void buff_insert(unsigned int item){
     spinlock_acquire(&(bbq.lk));
     dprintf("[BUFF_INSERT] insert %ld\n", item);
+    unsigned int target_cpu_idx = 1;
     while (isFullBBQ(&bbq)){
         dprintf("[BUFF_INSERT] buffer is full, waiting\n");
-        thread_wait(&(bbq.producer));
+        thread_wait(&(bbq.producer), target_cpu_idx);
     }
     for (int i = 0; i < 4; i++) {
         dprintf("[BUFF_INSERT] sleep queue at index %d is %ld\n", i, bbq.producer.queue[i]);

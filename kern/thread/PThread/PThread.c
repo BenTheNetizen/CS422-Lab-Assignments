@@ -79,9 +79,11 @@ void thread_yield(void)
     }
 }
 
-void thread_wait_helper() {
+void thread_wait_helper(unsigned cpu_idx) {
     // turn off old thread and turn on thread off the ready queue
-    unsigned int cpu_idx = get_pcpu_idx();
+    //unsigned int cpu_idx = get_pcpu_idx();
+    dprintf("DEBUG: cpu_idx: %ld\n", cpu_idx);
+    // CPU 1
     unsigned int new_cur_pid;
     unsigned int old_cur_pid = get_curid();
     int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
@@ -118,7 +120,9 @@ void thread_wait_helper() {
 
 void thread_signal_helper(unsigned int pid) {
     // add thread from sleep list to the ready queue
+    // always CPU idx 2
     unsigned int cpu_idx = get_pcpu_idx();
+    dprintf("DEBUG: cpu_idx: %ld\n", cpu_idx);
     unsigned int new_cur_pid;
 
     int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
