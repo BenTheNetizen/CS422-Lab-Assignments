@@ -22,6 +22,8 @@ unsigned int container_can_consume(unsigned int curid, unsigned int quota);
 unsigned int container_get_nchildren(unsigned int curid);
 unsigned int proc_create(void *elf_addr, unsigned int quota);
 void thread_yield(void);
+void thread_wait_helper(void);
+void thread_signal_helper(unsigned int pid);
 
 #endif  /* _KERN_ */
 

@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "export.h": "c",
+        "import.h": "c"
+    }
+}

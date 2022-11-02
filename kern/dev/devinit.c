@@ -6,6 +6,7 @@
 #include <lib/kstack.h>
 #include <lib/trap.h>
 #include <vmm/MPTInit/export.h>
+#include <trap/TSyscall/export.h>
 
 #include "console.h"
 #include "mboot.h"
@@ -37,6 +38,9 @@ void devinit(uintptr_t mbi_addr)
     KERN_INFO("[BSP KERN] INTR initialized\n");
 
     trap_init(0);
+
+    bbq_init();
+    KERN_INFO("[BSP KERN] BBQ initialized\n");
 
     pmmap_init(mbi_addr);
 }
