@@ -24,3 +24,12 @@ In this part, we introduced clock interrupts and preemption by first defining a 
 
 In this part, we temporarily enable interrupts during sys_consume and sys_produce execution. This ensures that we are able to use timer interrupts to switch between producing and consuming threads. We also then disable interrupts during any printing function inside each of these syscalls to ensure that the kernel is not preempted when it executes its printing code. Finally, we have added 3 specific error checks (for exceeding the quota, exceeding the max number of children, and for invalid child ids) within the sys_spawn call. This ensures that when trying to create a new thread from an existing one that the container conditions are able to support this new child thread before it is created.
 
+## Part 4:
+
+For the Producer-Consumer problem, we implemented a bounded buffer queue. There are two condition variables - whether 
+if the queue is full or empty and thus, we need two sleep queues, one for the producers and one for the consumers. During a call to wait(), 
+the currently running thread is placed on the thread's respective sleep queue, and then the next thread on the CPU's ready list is set to run (context switch).
+Furthermore, during a call to signal(), the thread takes another thread from the opposite CPU's waiting list and queues it in the opposite CPU's ready list. 
+This way, whenever the queue is full, the producers should be on their own sleeping list with the only thread running being the idle thread. Moreover, the consumers
+should begin running, taking producer threads from their sleep list and appending to their ready list as the consumers call signal(). We make sure to keep wait() 
+in a while loop.

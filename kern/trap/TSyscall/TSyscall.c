@@ -33,29 +33,9 @@ typedef struct {
     unsigned int count;
 } bbq_t;
 
-typedef struct bounded_buffer_t {
-    unsigned int val[MAX_BUF_SIZE];
-    unsigned int count;
-    unsigned int next_in;
-    unsigned int next_out;
-} bounded_buffer_t;
-
-typedef struct sleep_queue_t {
-    unsigned int val[4];
-    unsigned int count;
-    unsigned int next_in;
-    unsigned int next_out;
-} sleep_queue_t;
-
 static bbq_t bbq;
-static unsigned int currThread[NUM_CPUS];
 
-static bounded_buffer_t bounded_buffer;
-
-static sleep_queue_t sleep_queue;
-
-static spinlock_t buf_lock;
-static spinlock_t sleep_queue_lock; 
+static spinlock_t buf_lock; 
 
 void cv_init(cv_t *cv) {
     cv->count = 0;
@@ -72,11 +52,6 @@ void bbq_init() {
 
     cv_init(&(bbq.producer));
     cv_init(&(bbq.consumer));
-
-    // init the currThread array
-    for (unsigned int i = 0; i < NUM_CPUS; i++) {
-        currThread[i] = -1;
-    }
     return;
 }
 
@@ -122,9 +97,7 @@ void thread_wait(cv_t *cv){
     unsigned int pid = get_curid();
     cv_insert(pid, cv); // atomic instruction
 
-    // take thread off execution and turns on a thread in the ready list of other CPU
-    //thread_wait_helper();
-    // dprintf("[THREAD_WAIT] yield to thread on ready list\n");
+    // in pThread.c
     thread_wait_helper();
 
     // acquire spinlock again after being woken up by thread_wait from other CPU
@@ -132,12 +105,9 @@ void thread_wait(cv_t *cv){
 }
 
 void thread_signal(cv_t *cv) {
-    // dprintf("[THREAD_SIGNAL] \n");
     // remove thread from sleep queue and add to the ready list
     unsigned int new_cur_pid = cv_remove(cv);
-    // dprintf("[THREAD_SIGNAL] removed pid %d from producer sleep queue\n", new_cur_pid);
     if (new_cur_pid == -1) {
-        // dprintf("[THREAD_SIGNAL] SLEEP QUEUE is empty\n");
         return;
     }
     // take thread of sleep list and put on ready list of other CPU
@@ -146,7 +116,6 @@ void thread_signal(cv_t *cv) {
 
 unsigned int buff_remove(){
     spinlock_acquire(&(bbq.lk));
-    // dprintf("[BUFF_REMOVE] buf count: %d\n", bbq.count);
     while (isEmptyBBQ(&bbq)){
         // dprintf("[BUFF_REMOVE] buffer is empty, waiting\n");
         thread_wait(&(bbq.consumer));
@@ -155,27 +124,18 @@ unsigned int buff_remove(){
     bbq.count--;
     bbq.next_out = (bbq.next_out + 1) % MAX_BUF_SIZE;
     
-    for (int i = 0; i < 4; i++) {
-        // dprintf("[BUFF_REMOVE] buffer at index %d is %ld\n", i, bbq.items[i]);
-    }
     thread_signal(&(bbq.producer));
     spinlock_release(&(bbq.lk));
-    // dprintf("[BUFF_REMOVE] removed %ld\n", ret);
     return ret;
 }
 
 
 void buff_insert(unsigned int item){
     spinlock_acquire(&(bbq.lk));
-    // dprintf("[BUFF_INSERT] buf count: %d\n", bbq.count);
     while (isFullBBQ(&bbq)){
         // dprintf("[BUFF_INSERT] buffer is full, waiting\n");
         thread_wait(&(bbq.producer));
     }
-    for (int i = 0; i < 4; i++) {
-        // dprintf("[BUFF_INSERT] buffer at index %d is %ld\n", i, bbq.items[i]);
-    }
-    // dprintf("[BUFF_INSERT] buffer is not full, inserting %ld\n", item);
     bbq.items[bbq.next_in] = item;
     // dprintf("incrementing count\n");
     bbq.count++;
@@ -185,9 +145,6 @@ void buff_insert(unsigned int item){
     spinlock_release(&(bbq.lk));
     return;
 }
-
-
-
 
 
 /**
