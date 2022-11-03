@@ -7,8 +7,20 @@ Debug with gdb: make qemu-gdb / make qemu-nox-gdb
 To use your solutions from lab 1: git merge lab1
 To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
-List here the following info:
-1. who you have worked with
-2. whether you coded this assignment together, and if not, who worked on which part
-3. brief description of what you have implemented
-4. and anything else you would like us to know
+I worked with Benjamin Chen (netID: blc38)
+We coded this assignment together.
+
+## Part 1
+
+In this part, we first register appropriate trap handlers for each trap number. This just consists of calling the exception, interrupt, and syscall_dispatch handlers for cooresponding trap numbers.
+
+We also included spinlocks in kern/dev/console.c and kern/lib/debug.c to protect the cons and dprintf resources respectively. We added a spinlock in PThread for each cpu to protect the ready thread queue for each cpu on thread_spawn and thread_yield calls.
+
+## Part 2
+
+In this part, we introduced clock interrupts and preemption by first defining a sched_update function that keeps track of elapsed time since last thread switch for each cpu. Upon each LAPIC timer interrupt, this elapsed time is checked and if it exceeds SCHED_SLICE, the current cpu is forced to switch threads. We then call this sched_update function in the interrupt handler to check elapsed time every timer interrupt.
+
+## Part 3
+
+In this part, we temporarily enable interrupts during sys_consume and sys_produce execution. This ensures that we are able to use timer interrupts to switch between producing and consuming threads. We also then disable interrupts during any printing function inside each of these syscalls to ensure that the kernel is not preempted when it executes its printing code. Finally, we have added 3 specific error checks (for exceeding the quota, exceeding the max number of children, and for invalid child ids) within the sys_spawn call. This ensures that when trying to create a new thread from an existing one that the container conditions are able to support this new child thread before it is created.
+

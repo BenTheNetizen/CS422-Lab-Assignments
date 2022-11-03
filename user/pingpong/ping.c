@@ -12,10 +12,10 @@ int main(int argc, char **argv)
         produce();
 
     // slow producing
-    for (i = 0; i < 40; i++) {
-        if (i % 4 == 0)
-            produce();
-    }
+    // for (i = 0; i < 40; i++) {
+    //     if (i % 4 == 0)
+    //         produce();
+    // }
 
     return 0;
 }

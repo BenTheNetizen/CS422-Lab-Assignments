@@ -10,8 +10,7 @@
 #define MS_PER_LAPIC_INTR 1000/LAPIC_TIMER_INTR_FREQ
 
 spinlock_t thread_lock[NUM_CPUS];
-unsigned int\
- elapsed[NUM_CPUS];
+unsigned int elapsed[NUM_CPUS];
 
 void thread_init(unsigned int mbi_addr)
 {
@@ -72,7 +71,7 @@ void thread_yield(void)
 
     if (old_cur_pid != new_cur_pid) {
         spinlock_release(&thread_lock[cpu_idx]);
-        dprintf("[thread_yield]: switch from %d to %d", old_cur_pid, new_cur_pid);
+        // dprintf("[thread_yield]: switch from %d to %d\n", old_cur_pid, new_cur_pid);
         kctx_switch(old_cur_pid, new_cur_pid);
     }
     else{
@@ -100,7 +99,7 @@ void thread_wait_helper() {
 
     if (old_cur_pid != new_cur_pid) {
         spinlock_release(&thread_lock[cpu_idx]);
-        dprintf("[thread_yield]: switch from %d to %d", old_cur_pid, new_cur_pid);
+        // dprintf("[thread_yield]: switch from %d to %d", old_cur_pid, new_cur_pid);
         kctx_switch(old_cur_pid, new_cur_pid);
     }
     else{
@@ -154,11 +153,11 @@ void thread_signal_helper(unsigned int pid) {
 
     int status = spinlock_try_acquire(&thread_lock[cpu_idx]);
     if (status == 1) {
-        dprintf("thread_signal_helper: spinlock is already acquired\n");
+        // dprintf("thread_signal_helper: spinlock is already acquired\n");
         return;
     }
     tcb_set_state(pid, TSTATE_READY);
-    dprintf("[THREAD_SIGNAL_HELPER]: append pid %d to CPU's %d ready\n", pid, cpu_idx);
+    // dprintf("[THREAD_SIGNAL_HELPER]: append pid %d to CPU's %d ready\n", pid, cpu_idx);
     // enqueue the waiting thread to the ready list
     tqueue_enqueue(NUM_IDS + cpu_idx, pid);
     spinlock_release(&thread_lock[cpu_idx]);
