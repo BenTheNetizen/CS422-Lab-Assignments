@@ -122,6 +122,13 @@ void interrupt_handler(tf_t *tf)
         timer_intr_handler();
         break;
     // TODO: handle the disk interrupts here
+    case T_IRQ0 + IRQ_IDE1:
+        ide_intr();
+        intr_eoi();
+        break;
+    case T_IRQ0 + IRQ_IDE2:
+        // handle spurious interrupt signals from disk
+        break;
     default:
         default_intr_handler();
     }
