@@ -18,6 +18,10 @@
 #include "dir.h"
 #include "log.h"
 
+#define STATE_SLASH 0
+#define STATE_NAME 1 
+#define STATE_END 2
+
 // Paths
 
 /**
@@ -40,6 +44,58 @@
 static char *skipelem(char *path, char *name)
 {
     // TODO
+    unsigned int size = 0;
+    char *curr_name = name;
+    unsigned int state = STATE_SLASH;
+
+    while (1) {
+        switch (state) {
+            case STATE_SLASH:
+                if (*path == '/') {
+                    path++;
+                } else if (*path == '\0') {
+                    // no name to remove, return 0
+                    return 0;
+                } else {
+                    // encountered a character other than '/', append it to curr_name
+                    *curr_name = *path;
+                    path++;
+                    curr_name++;
+                    size++;
+                    state = STATE_NAME;
+                }
+                break;
+            case STATE_NAME:
+                if (*path == '/') {
+                    // path element ends
+                    *curr_name = '\0';
+                    state = STATE_END;
+                } else if (*path == '\0') {
+                    *curr_name = '\0';
+                    return "";
+                } else {
+                    if (size < 14 - 1) {
+                        *curr_name = *path;
+                        curr_name++;
+                        size++;
+                    }
+                    path++;
+                }
+                break;
+            case STATE_END:
+                // we have already copied the path element into name, need to return the path
+                if (*path == '/') {
+                    path++;
+                } else if (*path == '\0') {
+                    return "";
+                } else {
+                    return path;
+                }
+                break;
+        }
+        
+    }
+
     return 0;
 }
 
