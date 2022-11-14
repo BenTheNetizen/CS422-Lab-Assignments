@@ -5,12 +5,12 @@
 
 struct buf {
     int32_t flags;
-    int dev;
-    uint32_t sector;
+    int dev;            // device number
+    uint32_t sector;    // sector number
     struct buf *prev;   // LRU cache list
     struct buf *next;
     struct buf *qnext;  // disk queue
-    uint8_t data[512];
+    uint8_t data[512]; // sectors are of size 512 bytes
 };
 
 #define B_BUSY  0x1  // buffer is locked by some process

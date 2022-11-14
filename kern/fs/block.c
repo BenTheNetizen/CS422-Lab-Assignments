@@ -12,6 +12,7 @@ void read_superblock(int dev, struct superblock *sb)
     struct buf *bp;
 
     bp = bufcache_read(dev, 1);  // Block 1 is super block.
+    // Copy super block to sb.
     memmove(sb, bp->data, sizeof(*sb));
     bufcache_release(bp);
 }

@@ -305,6 +305,7 @@ void inode_stat(struct inode *ip, struct file_stat *st)
 /**
  * Read data from inode.
  */
+// read from inode at address 'ip' into 'dst' buffer 'n' bytes starting at offset 'off'
 int inode_read(struct inode *ip, char *dst, uint32_t off, uint32_t n)
 {
     uint32_t tot, m;

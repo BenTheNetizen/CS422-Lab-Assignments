@@ -46,6 +46,8 @@ void bufcache_init(void)
     // Create linked list of buffers
     bcache.head.prev = &bcache.head;
     bcache.head.next = &bcache.head;
+    // b initially a pointer to the first element of the array buf
+    // shouldn't we be incrementing by sizeof(struct buf) instead of 1?
     for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
         b->next = bcache.head.next;
         b->prev = &bcache.head;
@@ -71,16 +73,19 @@ loop:
     for (b = bcache.head.next; b != &bcache.head; b = b->next) {
         if (b->dev == dev && b->sector == sector) {
             if (!(b->flags & B_BUSY)) {
+                // Mark buffer as busy
                 b->flags |= B_BUSY;
                 spinlock_release(&bcache.lock);
                 return b;
             }
+            // buffer is busy, wait for it to be released
             thread_sleep(b, &bcache.lock);
             goto loop;
         }
     }
-
+    // if we get here, the sector is not cached
     // Not cached; recycle some non-busy and clean buffer.
+    // looks through the cache from the end (since LRU)
     for (b = bcache.head.prev; b != &bcache.head; b = b->prev) {
         if ((b->flags & B_BUSY) == 0 && (b->flags & B_DIRTY) == 0) {
             b->dev = dev;
@@ -102,6 +107,7 @@ struct buf *bufcache_read(uint32_t dev, uint32_t sector)
     struct buf *b;
 
     b = bufcache_get(dev, sector);
+    // if the buffer is not valid, data does not reflect disk
     if (!(b->flags & B_VALID)) {
         ide_rw(b);
     }
@@ -116,6 +122,7 @@ void bufcache_write(struct buf *b)
     if ((b->flags & B_BUSY) == 0)
         KERN_PANIC("bwrite");
 
+    // Mark buffer as dirty
     b->flags |= B_DIRTY;
     ide_rw(b);
 }
@@ -138,6 +145,7 @@ void bufcache_release(struct buf *b)
     bcache.head.next->prev = b;
     bcache.head.next = b;
 
+    // Mark buffer as not busy and wake up threads on the buffer channel
     b->flags &= ~B_BUSY;
     thread_wakeup(b);
 

@@ -7,7 +7,7 @@
 #define DIRSIZ 14
 
 struct dirent {
-    uint16_t inum;
+    uint16_t inum; // 0 means no entry
     char name[DIRSIZ];
 };
 
