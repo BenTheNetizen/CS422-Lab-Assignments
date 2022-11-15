@@ -6,6 +6,7 @@
 #include <kern/lib/string.h>
 #include <kern/lib/trap.h>
 #include <kern/lib/syscall.h>
+#include <kern/lib/spinlock.h>
 #include <kern/thread/PTCBIntro/export.h>
 #include <kern/thread/PCurID/export.h>
 #include <kern/trap/TSyscallArg/export.h>
@@ -26,9 +27,19 @@
  */
 static int fdalloc(struct file *f)
 {
-    // TODO
+    unsigned int pid = get_curid();
+    struct file **files = tcb_get_openfiles(pid);
+    for (int idx = 0; idx < NOFILE; idx++){
+        if (files[idx]==0) {
+            tcb_set_openfiles(pid, idx, f);
+            return idx;
+        }
+    }
     return -1;
 }
+
+char kernel_buf[10000];
+static spinlock_t buf_lk;
 
 /**
  * From the file indexed by the given file descriptor, read n bytes and save them
@@ -41,7 +52,45 @@ static int fdalloc(struct file *f)
  */
 void sys_read(tf_t *tf)
 {
-    // TODO
+    unsigned int pid = get_curid();
+
+    spinlock_acquire(&buf_lk);
+    int fd = (int)syscall_get_arg2(tf);
+    unsigned int user_buf = syscall_get_arg3(tf);
+    unsigned int n = syscall_get_arg4(tf);
+
+    if (fd < 0 || fd > NOFILE || n < 0){
+        KERN_INFO("invalid fd\n");
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        spinlock_release(&buf_lk);
+        return;
+    }
+    if (n > sizeof(kernel_buf) || user_buf < VM_USERLO || user_buf + n > VM_USERHI){
+        KERN_INFO("illegal user buffer address range\n");
+        // KERN_INFO("user_buf = %u, n = %u, VM_USERLO = %u, VM_USERHI = %u\n", user_buf, n, VM_USERLO, VM_USERHI);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        syscall_set_retval1(tf, -1);
+        spinlock_release(&buf_lk);
+        return;
+    }
+
+    struct file *open_file = tcb_get_openfiles(pid)[fd];
+
+    if (open_file == 0 || open_file->ip == 0){
+        KERN_INFO("invalid file struct\n");
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        spinlock_release(&buf_lk);
+        return;
+    } 
+    
+    int read_size = file_read(open_file, kernel_buf, n);
+    if (read_size > 0) pt_copyout(kernel_buf, pid, user_buf, read_size); 
+    syscall_set_retval1(tf, read_size);
+    syscall_set_errno(tf, E_SUCC);
+    spinlock_release(&buf_lk);
+    return;
 }
 
 /**
@@ -55,7 +104,45 @@ void sys_read(tf_t *tf)
  */
 void sys_write(tf_t *tf)
 {
-    // TODO
+    unsigned int pid = get_curid();
+
+    spinlock_acquire(&buf_lk);
+    int fd = (int)syscall_get_arg2(tf);
+    unsigned int user_buf = syscall_get_arg3(tf);
+    unsigned int n = syscall_get_arg4(tf);
+
+    if (fd < 0 || fd > NOFILE || n < 0){
+        KERN_INFO("invalid fd\n");
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        spinlock_release(&buf_lk);
+        return;
+    }
+
+    if (n > sizeof(kernel_buf) || user_buf < VM_USERLO || user_buf + n > VM_USERHI){
+        KERN_INFO("illegal user buffer address range\n");
+        // KERN_INFO("user_buf = %u, n = %u, VM_USERLO = %u, VM_USERHI = %u\n", user_buf, n, VM_USERLO, VM_USERHI);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        syscall_set_retval1(tf, -1);
+        spinlock_release(&buf_lk);
+        return;
+    }
+
+    struct file *open_file = tcb_get_openfiles(pid)[fd];
+    if (open_file == 0 || open_file->ip == 0){
+        KERN_INFO("invalid file struct\n");
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        spinlock_release(&buf_lk);
+        return;
+    } 
+
+    pt_copyin(pid, user_buf, kernel_buf, n);
+    int write_size = file_write(open_file, kernel_buf, n);
+    syscall_set_retval1(tf, write_size);
+    syscall_set_errno(tf, E_SUCC);
+    spinlock_release(&buf_lk);
+    return;
 }
 
 /**
@@ -64,7 +151,29 @@ void sys_write(tf_t *tf)
  */
 void sys_close(tf_t *tf)
 {
-    // TODO
+    unsigned int pid = get_curid();
+
+    int fd = (int)syscall_get_arg2(tf);
+    if (fd < 0 || fd > NOFILE){
+        KERN_INFO("invalid fd\n");
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    struct file *open_file = tcb_get_openfiles(pid)[fd];
+    if (open_file == 0){
+        KERN_INFO("invalid file struct\n");
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    file_close(open_file);
+    tcb_set_openfiles(pid, fd, 0);
+    syscall_set_retval1(tf, 0);
+    syscall_set_errno(tf, E_SUCC);
+    return;
 }
 
 /**
@@ -73,7 +182,41 @@ void sys_close(tf_t *tf)
  */
 void sys_fstat(tf_t *tf)
 {
-    // TODO
+    unsigned int pid = get_curid();
+
+    int fd = (int)syscall_get_arg2(tf);
+    struct file_stat *st = (struct file_stat *)syscall_get_arg3(tf);
+
+    if (fd < 0 || fd > NOFILE){
+        KERN_INFO("invalid fd\n");
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    if ((unsigned int)st < VM_USERLO || (unsigned int)st + sizeof(struct file_stat) > VM_USERHI){
+        KERN_INFO("illegal user pointer address range\n");
+        // KERN_INFO("user_buf = %u, n = %u, VM_USERLO = %u, VM_USERHI = %u\n", user_buf, n, VM_USERLO, VM_USERHI);
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    struct file *open_file = tcb_get_openfiles(pid)[fd];
+    if (open_file == 0){
+        KERN_INFO("invalid file struct\n");
+        syscall_set_retval1(tf, -1);
+        syscall_set_errno(tf, E_BADF);
+        return;
+    }
+
+    struct file_stat kernel_stat;
+    pt_copyin(pid, st, &kernel_stat, sizeof(struct file_stat));
+    int res = file_stat(open_file, &kernel_stat);
+    if (res==0) syscall_set_errno(tf, E_SUCC);
+    else syscall_set_errno(tf, E_BADF);
+    syscall_set_retval1(tf, res);
+    return;
 }
 
 /**
@@ -83,9 +226,16 @@ void sys_link(tf_t * tf)
 {
     char name[DIRSIZ], new[128], old[128];
     struct inode *dp, *ip;
+    unsigned int old_len = syscall_get_arg4(tf);
+    unsigned int new_len = syscall_get_arg5(tf);
+    if (old_len >= 128) old_len = 127;
+    if (new_len >= 128) new_len = 127;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), old, 128);
-    pt_copyin(get_curid(), syscall_get_arg3(tf), new, 128);
+    pt_copyin(get_curid(), syscall_get_arg2(tf), old, old_len);
+    pt_copyin(get_curid(), syscall_get_arg3(tf), new, new_len);
+
+    old[old_len] = '\0';
+    new[new_len] = '\0';
 
     if ((ip = namei(old)) == 0) {
         syscall_set_errno(tf, E_NEXIST);
@@ -154,8 +304,12 @@ void sys_unlink(tf_t *tf)
     struct dirent de;
     char name[DIRSIZ], path[128];
     uint32_t off;
+    unsigned int path_len = syscall_get_arg3(tf);
+    if (path_len >= 128) path_len = 127;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
+
+    path[path_len] = '\0';
 
     if ((dp = nameiparent(path, name)) == 0) {
         syscall_set_errno(tf, E_DISK_OP);
@@ -256,8 +410,11 @@ void sys_open(tf_t *tf)
     int fd, omode;
     struct file *f;
     struct inode *ip;
+    unsigned int path_len = syscall_get_arg4(tf);
+    if (path_len >= 128) path_len = 127;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
+    path[path_len] = '\0';
     omode = syscall_get_arg3(tf);
 
     if (omode & O_CREATE) {
@@ -307,8 +464,11 @@ void sys_mkdir(tf_t *tf)
 {
     char path[128];
     struct inode *ip;
+    unsigned int path_len = syscall_get_arg3(tf);
+    if (path_len >= 128) path_len = 127;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
+    path[path_len] = '\0';
 
     begin_trans();
     if ((ip = (struct inode *) create(path, T_DIR, 0, 0)) == 0) {
@@ -326,8 +486,11 @@ void sys_chdir(tf_t *tf)
     char path[128];
     struct inode *ip;
     int pid = get_curid();
+    unsigned int path_len = syscall_get_arg3(tf);
+    if (path_len >= 128) path_len = 127;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
+    path[path_len] ='\0';
 
     if ((ip = namei(path)) == 0) {
         syscall_set_errno(tf, E_DISK_OP);
