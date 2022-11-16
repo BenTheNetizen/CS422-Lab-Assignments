@@ -211,7 +211,7 @@ void sys_fstat(tf_t *tf)
     }
 
     struct file_stat kernel_stat;
-    pt_copyin(pid, st, &kernel_stat, sizeof(struct file_stat));
+    pt_copyin(pid, (unsigned int)st, &kernel_stat, sizeof(struct file_stat));
     int res = file_stat(open_file, &kernel_stat);
     if (res==0) syscall_set_errno(tf, E_SUCC);
     else syscall_set_errno(tf, E_BADF);
@@ -308,7 +308,6 @@ void sys_unlink(tf_t *tf)
     if (path_len >= 128) path_len = 127;
 
     pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
-
     path[path_len] = '\0';
 
     if ((dp = nameiparent(path, name)) == 0) {

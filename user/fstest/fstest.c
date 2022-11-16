@@ -125,7 +125,6 @@ void createtest(void)
     name[0] = 'a';
     name[2] = '\0';
     for (i = 0; i < 52; i++) {
-        printf("%d\n", i);
         name[1] = '0' + i;
         fd = open(name, O_CREATE | O_RDWR);
         close(fd);

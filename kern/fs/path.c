@@ -45,8 +45,8 @@ static char *skipelem(char *path, char *name)
     if (*curr=='\0') return 0;
     char *start = curr;
     while (*curr!='/' && *curr!='\0') curr++;
-    int len = curr-start;
-    int copySize = len;
+    uint32_t len = curr-start;
+    uint32_t copySize = len;
     if (len>=DIRSIZ) copySize = DIRSIZ-1;
     strncpy(name, start, copySize);
     name[copySize]= '\0';
@@ -80,7 +80,7 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
             return 0;
         }
         if (nameiparent && *path=='\0'){
-            inode_unlockput(ip);
+            inode_unlock(ip);
             return ip;
         }
         struct inode *next = dir_lookup(ip, name, 0);

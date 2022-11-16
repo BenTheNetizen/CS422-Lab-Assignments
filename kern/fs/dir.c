@@ -21,7 +21,7 @@ struct inode *dir_lookup(struct inode *dp, char *name, uint32_t * poff)
     struct dirent de;
 
     if (dp->type != T_DIR)
-        KERN_PANIC("dir_lookup not DIR");
+        KERN_PANIC("not a directory");
 
     for (off = 0; off < dp->size ; off += sizeof(de)){
         if (inode_read(dp, (char*)&de, off, sizeof(de)) != sizeof(de)){
@@ -55,15 +55,12 @@ int dir_link(struct inode *dp, char *name, uint32_t inum)
         if (inode_read(dp, (char*)&de, off, sizeof(de)) != sizeof(de)){
             KERN_PANIC("dir_lookup fail");
         }
-        if (de.inum == 0){
-            de.inum = inum;
-            strncpy(de.name, name, DIRSIZ);
-            if (inode_write(dp, (char*)&de, off, sizeof(de)) != sizeof(de)){
-                KERN_PANIC("No unallocated subdirectory entry found");
-            }
-            return 0;
-        }
+        if (de.inum == 0) break;
     }
-
-    return -1;
+    de.inum = inum;
+    strncpy(de.name, name, DIRSIZ);
+    if (inode_write(dp, (char*)&de, off, sizeof(de)) != sizeof(de)){
+        KERN_PANIC("No unallocated subdirectory entry found");
+    }
+    return 0;
 }
