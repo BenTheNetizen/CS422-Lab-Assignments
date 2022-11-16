@@ -5,11 +5,50 @@
 #include <lib/trap.h>
 #include <lib/syscall.h>
 #include <dev/intr.h>
+#include <dev/console.h>
 #include <pcpu/PCPUIntro/export.h>
 
 #include "import.h"
+#include <lib/string.h> // HOW DO WE GET STRLEN THE RIGHT WAY?
 
 static char sys_buf[NUM_IDS][PAGESIZE];
+
+//pt_copyout is from kernel buf -> user buf
+//pt_copyin is from user buf -> kernel buf
+
+void sys_readline(tf_t *tf) {
+    unsigned int curid = get_curid();
+    unsigned int buf = (unsigned int)syscall_get_arg2(tf);
+    char *kern_buf;
+    int bytes_read;
+    // unsigned int prompt = syscall_get_arg3(tf);
+    char* prompt = "prompt> ";
+    dprintf("sys_readline: buf = %x, prompt = %s\n", buf, prompt);
+
+    // perhaps need to add a size component to the buffer
+    if (buf <= VM_USERLO || buf >= VM_USERHI) {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    if ((kern_buf = readline(prompt)) == NULL) {
+        KERN_INFO("sys_readline: readline failed\n");
+        syscall_set_errno(tf, E_MEM);
+        return;
+    }
+    bytes_read = strlen(kern_buf);
+    memcpy(sys_buf[curid], kern_buf, bytes_read);
+    // copy the kernel buffer to the user buffer
+    if (bytes_read > 0) {
+        if (pt_copyout(sys_buf[curid], curid, buf, bytes_read) != bytes_read) {
+            KERN_INFO("sys_readline: pt_copyout failed\n");
+            syscall_set_errno(tf, E_MEM);
+            return;
+        }
+    }
+
+    syscall_set_errno(tf, E_SUCC);
+}
 
 /**
  * Copies a string from user into buffer and prints it to the screen.

@@ -10,6 +10,15 @@
 #include <x86.h>
 #include <file.h>
 
+static gcc_inline void sys_readline(char *buf, char *prompt) {
+    asm volatile ("int %0" 
+                  :: "i" (T_SYSCALL), 
+                     "a" (SYS_readline),
+                     "b" (buf),
+                     "c" (prompt)
+                  : "cc", "memory");
+}
+
 static gcc_inline void sys_puts(const char *s, size_t len)
 {
     asm volatile ("int %0"

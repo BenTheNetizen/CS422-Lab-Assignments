@@ -66,6 +66,15 @@ int strncmp(const char *p, const char *q, size_t n)
         return (int) ((unsigned char) *p - (unsigned char) *q);
 }
 
+int strlen(const char *s)
+{
+    int n;
+
+    for (n = 0; *s != '\0'; s++)
+        n++;
+    return n;
+}
+
 int strnlen(const char *s, size_t size)
 {
     int n;

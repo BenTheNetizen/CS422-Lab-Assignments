@@ -8,6 +8,7 @@
 
 #define getc()         sys_getc()
 #define puts(str, len) sys_puts((str), (len))
+#define readline(buf, prompt)  sys_readline((buf), (prompt))
 
 /*
  * standard c formatted output

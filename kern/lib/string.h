@@ -12,6 +12,7 @@ void *memzero(void *dst, size_t len);
 int memcmp(const void *v1, const void *v2, size_t n);
 int strcmp(const char *p, const char *q);
 int strncmp(const char *p, const char *q, size_t n);
+int strlen(const char *s);
 int strnlen(const char *s, size_t size);
 char *strchr(const char *s, char c);
 char *strncpy(char *s, const char *t, int n);
