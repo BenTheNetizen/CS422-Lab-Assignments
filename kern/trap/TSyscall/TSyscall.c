@@ -23,7 +23,6 @@ void sys_readline(tf_t *tf) {
     int bytes_read;
     // unsigned int prompt = syscall_get_arg3(tf);
     char* prompt = "prompt> ";
-    dprintf("sys_readline: buf = %x, prompt = %s\n", buf, prompt);
 
     // perhaps need to add a size component to the buffer
     if (buf <= VM_USERLO || buf >= VM_USERHI) {
@@ -97,6 +96,7 @@ extern uint8_t _binary___obj_user_pingpong_ping_start[];
 extern uint8_t _binary___obj_user_pingpong_pong_start[];
 extern uint8_t _binary___obj_user_pingpong_ding_start[];
 extern uint8_t _binary___obj_user_fstest_fstest_start[];
+extern uint8_t _binary___obj_user_shell_shell_start[];
 
 /**
  * Spawns a new child process.
@@ -154,6 +154,9 @@ void sys_spawn(tf_t *tf)
         break;
     case 4:
         elf_addr = _binary___obj_user_fstest_fstest_start;
+        break;
+    case 5:
+        elf_addr = _binary___obj_user_shell_shell_start;
         break;
     default:
         syscall_set_errno(tf, E_INVAL_PID);

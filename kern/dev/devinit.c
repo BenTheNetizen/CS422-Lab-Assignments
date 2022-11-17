@@ -7,6 +7,8 @@
 #include <lib/trap.h>
 #include <vmm/MPTInit/export.h>
 
+#include <fs/sysfile.h>
+
 #include "console.h"
 #include "mboot.h"
 #include "intr.h"
@@ -20,6 +22,7 @@ void bufcache_init(void);
 void inode_init(void);
 void file_init(void);
 
+
 void devinit(uintptr_t mbi_addr)
 {
     seg_init(0);
@@ -27,7 +30,6 @@ void devinit(uintptr_t mbi_addr)
     enable_sse();
 
     cons_init();
-
     debug_init();
     KERN_INFO("[BSP KERN] cons initialized.\n");
     KERN_INFO("[BSP KERN] devinit mbi_addr: %d\n", mbi_addr);
@@ -50,6 +52,8 @@ void devinit(uintptr_t mbi_addr)
     file_init();      // file table
     inode_init();     // inode cache
     ide_init();
+    kernel_buf_init(); // kernel buf init (for sysfile.c)
+    
     KERN_INFO("[BSP KERN] IDE disk driver initialized\n");
 }
 

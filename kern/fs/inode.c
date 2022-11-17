@@ -139,13 +139,15 @@ void inode_lock(struct inode *ip)
         KERN_PANIC("inode_lock");
 
     spinlock_acquire(&inode_cache.lock);
+    dprintf("inode_lock: ACQUIRED LOCK\n");
     while (ip->flags & I_BUSY)
         thread_sleep(ip, &inode_cache.lock);
     ip->flags |= I_BUSY;
     spinlock_release(&inode_cache.lock);
-
+    dprintf("inode_lock: RELEASED LOCK\n");
     if (!(ip->flags & I_VALID)) {
         bp = bufcache_read(ip->dev, IBLOCK(ip->inum));
+         dprintf("please work\n");
         dip = (struct dinode *) bp->data + ip->inum % IPB;
         ip->type = dip->type;
         ip->major = dip->major;
@@ -158,6 +160,7 @@ void inode_lock(struct inode *ip)
         if (ip->type == 0)
             KERN_PANIC("inode_lock: no type");
     }
+    dprintf("dJAIWODJWIAO\n");
 
 }
 

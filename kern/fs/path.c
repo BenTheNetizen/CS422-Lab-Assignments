@@ -12,6 +12,7 @@
 #include <kern/lib/types.h>
 #include <kern/lib/debug.h>
 #include <kern/lib/spinlock.h>
+#include <kern/lib/string.h>
 #include <thread/PTCBIntro/export.h>
 #include <thread/PCurID/export.h>
 #include "inode.h"
@@ -74,7 +75,9 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
     }
 
     while ((path = skipelem(path, name)) != 0) {
+        dprintf("INSIDE WHILE OF NAMEX\n");
         inode_lock(ip);
+        dprintf("INSIDE WHILE OF NAMEX LOCK\n");
         if (ip->type!=T_DIR){
             inode_unlockput(ip);
             return 0;
@@ -83,6 +86,7 @@ static struct inode *namex(char *path, bool nameiparent, char *name)
             inode_unlock(ip);
             return ip;
         }
+        dprintf("INSIDE WHILE OF NAMEX BEFORE DIR_LOOKUP\n");
         struct inode *next = dir_lookup(ip, name, 0);
         if (next==0){
             inode_unlockput(ip);

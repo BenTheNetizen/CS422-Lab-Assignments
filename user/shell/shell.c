@@ -3,17 +3,6 @@
 #include <syscall.h>
 #include <x86.h>
 
-// const int STATE_LS = 0;
-// const int STATE_PWD = 1;
-// const int STATE_CD = 2;
-// const int STATE_CP = 3;
-// const int STATE_MV = 4;
-// const int STATE_RM = 5;
-// const int STATE_MKDIR = 6;
-// const int STATE_CAT = 7;
-// const int STATE_TOUCH = 8;
-// const int STATE_PARSE = 9;
-
 const int STATE_COMMAND = 0;
 const int STATE_FLAG = 1;
 const int STATE_PARAM = 2;
@@ -117,13 +106,19 @@ void parse(char* buff, char* command, char* flag, char* param1, char* param2) {
 
 int main(int argc, char **argv)
 {
-  printf("shell\n");
   char s[10] = "prompt>";
   char buff[128];
   char command[128];
   char flag[128];
   char param1[128];
   char param2[128];
+
+  int fd = open("small", O_CREATE | O_RDWR);
+  if (fd >= 0) {
+      printf("create small succeeded; ok, fd: %d\n", fd);
+  } else {
+      printf("error: create small failed!\n");
+  }
 
   while(1) {
     memset(buff, 0, 128);
@@ -138,5 +133,9 @@ int main(int argc, char **argv)
     parse(buff, command, flag, param1, param2);
 
     printf("parsed: command: %s, flag: %s, param1: %s, param2: %s\n", command, flag, param1, param2);
+
+    if (mkdir("dots") != 0) {
+        printf("mkdir dots failed\n");
+    }
   }
 }

@@ -41,6 +41,11 @@ static int fdalloc(struct file *f)
 char kernel_buf[10000];
 static spinlock_t buf_lk;
 
+void kernel_buf_init(void)
+{
+    spinlock_init(&buf_lk);
+}
+
 /**
  * From the file indexed by the given file descriptor, read n bytes and save them
  * into the buffer in the user. As explained in the assignment specification,
