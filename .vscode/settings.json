@@ -3,6 +3,7 @@
         "stdio.h": "c",
         "syscall.h": "c",
         "proc.h": "c",
-        "console.h": "c"
+        "console.h": "c",
+        "ioapic.h": "c"
     }
 }
