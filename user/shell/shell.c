@@ -112,13 +112,15 @@ int main(int argc, char **argv)
   char flag[128];
   char param1[128];
   char param2[128];
+  char shell_buf[10000];
 
-  int fd = open("small", O_CREATE | O_RDWR);
-  if (fd >= 0) {
-      printf("create small succeeded; ok, fd: %d\n", fd);
-  } else {
-      printf("error: create small failed!\n");
-  }
+  // int fd = open("small", O_CREATE | O_RDWR);
+  // if (fd >= 0) {
+  //     printf("create small succeeded; ok, fd: %d\n", fd);
+  // } else {
+  //     printf("error: create small failed!\n");
+  // }
+  mkdir("~");
 
   while(1) {
     memset(buff, 0, 128);
@@ -134,8 +136,34 @@ int main(int argc, char **argv)
 
     printf("parsed: command: %s, flag: %s, param1: %s, param2: %s\n", command, flag, param1, param2);
 
-    if (mkdir("dots") != 0) {
-        printf("mkdir dots failed\n");
+    if (strncmp(command, "mkdir", strlen("mkdir")) == 0){
+      if (mkdir(param1) != 0) printf("mkdir failed\n");
     }
+    else if (strncmp(command, "cd", strlen("cd")) == 0){
+      if (chdir(param1) != 0 ) printf("cd failed\n");
+    }
+    else if (strncmp(command, "pwd", strlen("pwd")) == 0){
+      pwd(shell_buf);
+      printf("%s\n", shell_buf);
+      memset(shell_buf, 0, 10000);
+    }
+    else if (strncmp(command, "ls", strlen("ls")) == 0){
+      ls(shell_buf, param1);
+      printf("%s\n", shell_buf);
+      memset(shell_buf, 0, 10000);
+    }
+    // else if (strncmp(command, "cat", strlen("cat")) == 0){
+    //   int fd = sys_open(param1, O_RDONLY);
+    //   if (fd==-1) {
+    //     printf("cat failed\n");
+    //     continue;
+    //   }
+    //   sys_read(fd, shell_buf, strlen(shell_buf));
+    //   printf("%s\n", shell_buf);
+    //   memset(shell_buf, 0, 10000);
+    // }
+    // else if (strncmp(command, "touch", strlen("touch")) == 0){
+    //   if (touch(param1) != 0) printf("touch failed\n");
+    // }
   }
 }

@@ -9,7 +9,7 @@
 #include <types.h>
 #include <x86.h>
 #include <file.h>
-
+#
 static gcc_inline void sys_readline(char *buf, char *prompt) {
     asm volatile ("int %0" 
                   :: "i" (T_SYSCALL), 
@@ -196,6 +196,72 @@ static gcc_inline int sys_chdir(char *path)
                   : "=a" (errno), "=b" (ret)
                   : "i" (T_SYSCALL),
                     "a" (SYS_chdir),
+                    "b" (path),
+                    "c" (path_len)
+                  : "cc", "memory");
+
+    return errno ? -1 : 0;
+}
+
+static gcc_inline int sys_pwd(char *buf)
+{
+    int errno, ret;
+    unsigned int buf_len = strlen(buf);
+
+    asm volatile ("int %2"
+                  : "=a" (errno), "=b" (ret)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_pwd),
+                    "b" (buf),
+                    "c" (buf_len)
+                  : "cc", "memory");
+
+    return errno ? -1 : 0;
+}
+
+static gcc_inline int sys_ls(char *buf, char *path)
+{
+    int errno, ret;
+    unsigned int buf_len = strlen(buf);
+    unsigned int path_len = strlen(path);
+    asm volatile ("int %2"
+                  : "=a" (errno), "=b" (ret)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_ls),
+                    "b" (buf),
+                    "c" (buf_len),
+                    "d" (path),
+                    "D" (path_len)
+                  : "cc", "memory");
+
+    return errno ? -1 : 0;
+}
+
+static gcc_inline int sys_cat(char *path)
+{
+    int errno, ret;
+    unsigned int path_len = strlen(path);
+
+    asm volatile ("int %2"
+                  : "=a" (errno), "=b" (ret)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_cat),
+                    "b" (path),
+                    "c" (path_len)
+                  : "cc", "memory");
+
+    return errno ? -1 : 0;
+}
+
+static gcc_inline int sys_touch(char *path)
+{
+    int errno, ret;
+    unsigned int path_len = strlen(path);
+
+    asm volatile ("int %2"
+                  : "=a" (errno), "=b" (ret)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_touch),
                     "b" (path),
                     "c" (path_len)
                   : "cc", "memory");

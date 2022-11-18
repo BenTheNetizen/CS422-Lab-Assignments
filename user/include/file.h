@@ -54,5 +54,9 @@ struct file {
 #define open(path, omode) sys_open((path), (omode))
 #define mkdir(path)       sys_mkdir((path))
 #define chdir(path)       sys_chdir((path))
+#define pwd(buf)          sys_pwd((buf))
+#define ls(buf, path)     sys_ls((buf), (path))
+#define cat(path)         sys_cat((path))
+#define touch(path)       sys_touch((path))
 
 #endif  /* !_USER_FILE_H_ */

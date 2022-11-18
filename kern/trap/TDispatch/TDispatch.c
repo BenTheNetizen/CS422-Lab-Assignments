@@ -94,6 +94,18 @@ void syscall_dispatch(tf_t *tf)
     case SYS_readline:
         sys_readline(tf);
         break;
+    case SYS_pwd:
+        sys_pwd(tf);
+        break;
+    case SYS_ls:
+        sys_ls(tf);
+        break;
+    case SYS_cat:
+        sys_cat(tf);
+        break;
+    case SYS_touch:
+        sys_touch(tf);
+        break;
     default:
         syscall_set_errno(tf, E_INVAL_CALLNR);
     }
