@@ -152,18 +152,18 @@ int main(int argc, char **argv)
       printf("%s\n", shell_buf);
       memset(shell_buf, 0, 10000);
     }
-    // else if (strncmp(command, "cat", strlen("cat")) == 0){
-    //   int fd = sys_open(param1, O_RDONLY);
-    //   if (fd==-1) {
-    //     printf("cat failed\n");
-    //     continue;
-    //   }
-    //   sys_read(fd, shell_buf, strlen(shell_buf));
-    //   printf("%s\n", shell_buf);
-    //   memset(shell_buf, 0, 10000);
-    // }
-    // else if (strncmp(command, "touch", strlen("touch")) == 0){
-    //   if (touch(param1) != 0) printf("touch failed\n");
-    // }
+    else if (strncmp(command, "cat", strlen("cat")) == 0){
+      int fd = sys_open(param1, O_RDONLY);
+      if (fd==-1) {
+        printf("cat failed\n");
+        continue;
+      }
+      sys_read(fd, shell_buf, strlen(shell_buf));
+      printf("%s\n", shell_buf);
+      memset(shell_buf, 0, 10000);
+    }
+    else if (strncmp(command, "touch", strlen("touch")) == 0){
+      if (touch(param1) != 0) printf("touch failed\n");
+    }
   }
 }
