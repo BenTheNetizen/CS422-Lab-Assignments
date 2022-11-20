@@ -113,14 +113,8 @@ int main(int argc, char **argv)
   char param1[128];
   char param2[128];
   char shell_buf[10000];
-
-  // int fd = open("small", O_CREATE | O_RDWR);
-  // if (fd >= 0) {
-  //     printf("create small succeeded; ok, fd: %d\n", fd);
-  // } else {
-  //     printf("error: create small failed!\n");
-  // }
-  mkdir("~");
+  
+  chdir("~");
 
   while(1) {
     memset(buff, 0, 128);
