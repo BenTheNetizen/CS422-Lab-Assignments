@@ -237,22 +237,6 @@ static gcc_inline int sys_ls(char *buf, char *path)
     return errno ? -1 : 0;
 }
 
-static gcc_inline int sys_cat(char *path)
-{
-    int errno, ret;
-    unsigned int path_len = strlen(path);
-
-    asm volatile ("int %2"
-                  : "=a" (errno), "=b" (ret)
-                  : "i" (T_SYSCALL),
-                    "a" (SYS_cat),
-                    "b" (path),
-                    "c" (path_len)
-                  : "cc", "memory");
-
-    return errno ? -1 : 0;
-}
-
 static gcc_inline int sys_touch(char *path)
 {
     int errno, ret;

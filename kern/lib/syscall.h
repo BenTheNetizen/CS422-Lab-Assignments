@@ -46,8 +46,8 @@ enum __syscall_nr {
     SYS_readline, // read a line from the keyboard
     SYS_pwd,
     SYS_ls,
-    SYS_cat,
     SYS_touch,
+    
 
     MAX_SYSCALL_NR  /* XXX: always put it at the end of __syscall_nr */
 };

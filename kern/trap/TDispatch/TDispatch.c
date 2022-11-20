@@ -100,9 +100,6 @@ void syscall_dispatch(tf_t *tf)
     case SYS_ls:
         sys_ls(tf);
         break;
-    case SYS_cat:
-        sys_cat(tf);
-        break;
     case SYS_touch:
         sys_touch(tf);
         break;

@@ -89,7 +89,6 @@ void sys_read(tf_t *tf)
         spinlock_release(&buf_lk);
         return;
     } 
-    
     int read_size = file_read(open_file, kernel_buf, n);
     if (read_size > 0) pt_copyout(kernel_buf, pid, user_buf, read_size); 
     syscall_set_retval1(tf, read_size);
@@ -574,61 +573,6 @@ void sys_ls(tf_t *tf)
     syscall_set_errno(tf, E_SUCC);
     spinlock_release(&buf_lk);
     return;
-
-}
-
-void sys_cat(tf_t *tf)
-{
-    // spinlock_acquire(&buf_lk);
-
-    // unsigned int path = syscall_get_arg2(tf);
-    // unsigned int path_len = syscall_get_arg3(tf);
-    // int pid = get_curid();
-    // struct inode *ip; 
-    // if ((ip = namei(path)) == 0) {
-    //     syscall_set_errno(tf, E_NEXIST);
-    //     dprintf("cat: path does not exist\n");
-    //     return;
-    // }
-    // if (ip->type == T_DIR){
-    //     syscall_set_errno(tf, E_BADF);
-    //     dprintf("file is a directory\n");
-    //     return;
-    // }
-
-    // open(path, )
-    
-    // if (path_len > 0) {
-    //     pt_copyin(pid, syscall_get_arg4(tf), path, path_len);
-    //     if ((ip = namei(path)) == 0) {
-    //         syscall_set_errno(tf, E_NEXIST);
-    //         dprintf("ls: path does not exist\n");
-    //     return;
-    //     }
-    // } else {
-    //     ip = tcb_get_cwd(pid);
-    // }
-
-    // int idx = 0;
-    // uint32_t off;
-    // struct dirent de;
-
-    // for (off = 0; off < ip->size; off+=sizeof(de)){
-    //     if (inode_read(ip, (char*)&de, off, sizeof(de)) != sizeof(de)){
-    //         KERN_PANIC("dir_lookup fail");
-    //     }
-    //     if (de.inum != 0 && idx+strlen(de.name)<10000){
-    //         strncpy(kernel_buf+idx, de.name, strlen(de.name));
-    //         idx += strlen(de.name);
-    //         kernel_buf[idx++] = ' ';
-    //     }
-    // }
-
-    // pt_copyout(kernel_buf, pid, buf, idx);
-    // memset(kernel_buf, 0, 10000);
-    // syscall_set_errno(tf, E_SUCC);
-    // spinlock_release(&buf_lk);
-    // return;
 
 }
 

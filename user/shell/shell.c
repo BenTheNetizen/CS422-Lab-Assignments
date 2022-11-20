@@ -155,15 +155,39 @@ int main(int argc, char **argv)
     else if (strncmp(command, "cat", strlen("cat")) == 0){
       int fd = sys_open(param1, O_RDONLY);
       if (fd==-1) {
-        printf("cat failed\n");
+        printf("file does not exist\n");
         continue;
       }
-      sys_read(fd, shell_buf, strlen(shell_buf));
+      int read_size = sys_read(fd, shell_buf, sizeof(shell_buf) - 1);
+      shell_buf[read_size] = '\0';
       printf("%s\n", shell_buf);
       memset(shell_buf, 0, 10000);
     }
     else if (strncmp(command, "touch", strlen("touch")) == 0){
       if (touch(param1) != 0) printf("touch failed\n");
+    }
+    else if (strncmp(command, "write", strlen("write")) == 0){
+      int fd = open(param2, O_WRONLY);
+      if (fd==-1) fd = open(param2, O_CREATE | O_WRONLY);
+      int write_size = sys_write(fd, param1, strlen(param1));
+      if (write_size != strlen(param1)) printf("write failed\n");
+      close(fd);
+    }
+    else if (strncmp(command, "append", strlen("append")) == 0){
+      int fd = open(param2, O_RDWR);
+      if (fd==-1) {
+        printf("file does not exist\n");
+        continue;
+      }
+      int read_size = sys_read(fd, shell_buf, sizeof(shell_buf) - 1);
+      int idx = read_size;
+      for (int i=0;i<strlen(param1);i++){
+        if (idx<sizeof(shell_buf)-1) shell_buf[idx++] = param1[i];
+      }
+      shell_buf[idx++] = '\0';
+      sys_write(fd, param1, sizeof(shell_buf));
+      close(fd);
+      memset(shell_buf, 0, 10000);
     }
   }
 }
