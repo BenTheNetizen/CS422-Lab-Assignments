@@ -513,23 +513,51 @@ void sys_chdir(tf_t *tf)
 
 void sys_pwd(tf_t *tf)
 {
+    spinlock_acquire(&buf_lk);
     int pid = get_curid();
-    dprintf("%d\n", pid);
-    struct inode *ip = tcb_get_cwd(pid);
-    dprintf("%d, %d, %d\n", ip, ip->inum, ip->size);
-    // uint32_t off;
+    uint32_t poff;
+    struct inode *curr = tcb_get_cwd(pid);
+    struct inode *parent = dir_lookup(curr, "..", &poff);
 
     char *buf = (char*)syscall_get_arg2(tf);
     unsigned int buf_len = syscall_get_arg3(tf);
-    
     struct dirent de;
-    if (inode_read(ip, (char*)&de, 0, sizeof(de)) != sizeof(de)){
-        KERN_PANIC("dir_lookup fail");
-    }
-    dprintf("%s\n", de.name);
+    char path[128][16];
+    int idx = 0;
 
-    pt_copyin(pid, de.name, buf, strlen(de.name));
+    while (parent->inum != curr->inum){
+        for (uint32_t off = 0; off < parent->size; off += sizeof(de)) {
+            if (inode_read(parent, (char*)&de, off, sizeof(de)) != sizeof(de)) {
+               KERN_PANIC("dir_lookup failed");
+            }
+            if (de.inum == curr->inum) {
+              strncpy(path[idx], de.name, 15);
+              idx++;
+              break;
+            }
+        }
+        curr = parent;
+        parent = dir_lookup(curr, "..", &poff);
+    }
+    
+    unsigned int kernel_buf_idx = 0;
+    char *kb = kernel_buf;
+    *(kb++) = '/';
+    idx--;
+    while (idx >= 0){
+        strncpy(kb, path[idx], strlen(path[idx]));
+        kb+=strlen(path[idx]);
+        *(kb++) = '/';
+        idx--;
+    }
+    kb--;
+    if (kb!=kernel_buf) *(kb) = '\0';
+    kb++;
+    pt_copyout(kernel_buf, pid, buf, kb-kernel_buf);
     syscall_set_errno(tf, E_SUCC);
+    memset(kernel_buf, 0, 10000);
+    spinlock_release(&buf_lk);
+    return;
 }
 
 void sys_ls(tf_t *tf)
