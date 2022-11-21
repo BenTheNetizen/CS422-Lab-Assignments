@@ -4,6 +4,7 @@
         "syscall.h": "c",
         "proc.h": "c",
         "console.h": "c",
-        "ioapic.h": "c"
+        "ioapic.h": "c",
+        "sysfile.h": "c"
     }
 }

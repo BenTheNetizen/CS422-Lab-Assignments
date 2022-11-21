@@ -3,6 +3,8 @@
 #include <syscall.h>
 #include <x86.h>
 
+#define BUFFER_SIZE 1024
+
 const int STATE_COMMAND = 0;
 const int STATE_FLAG = 1;
 const int STATE_PARAM = 2;
@@ -104,84 +106,278 @@ void parse(char* buff, char* command, char* flag, char* param1, char* param2) {
   param2[strlen(init_param2)] = '\0';
 }
 
+int is_dir(char *filename);
+int does_file_exist(char *filename);
+
+void get_filename(char* path, char*filename) {
+  int n = strlen(path);
+  if (n == 0) {
+    return;
+  }
+  int i = n-1;
+  while (i >= 0 && path[i] != '/') {
+    i--;
+  }
+  strncpy(filename, path+i+1, n-i-1);
+}
+
+void copy_file(char* dst, char*src) {
+  // if source is a directory, need to make destination a directory
+  if (is_dir(src)) {
+    mkdir(dst);
+    return;
+  }  
+  int fd = open(src, O_RDONLY);
+  char buf[BUFFER_SIZE];
+  read(fd, buf, BUFFER_SIZE);
+  close(fd);
+  fd = open(dst, O_CREATE|O_RDWR);
+  write(fd, buf, strlen(buf));
+  close(fd);
+}
+
+int does_file_exist(char *filename) {
+  int fd = open(filename, O_RDONLY);
+  if (fd < 0) {
+    return 0;
+  }
+  close(fd);
+  return 1;
+}
+
+// returns 1 if the file is a directory else 0
+int is_dir(char *filename) {
+  int fd;
+  int isDir;
+  if (!does_file_exist(filename)) {
+    printf("is_dir: file does not exist!\n");
+    return 0;
+  }
+  fd = open(filename, O_RDONLY);
+  isDir = sys_is_dir(fd);
+  close(fd);
+  if (isDir == 0) {
+    printf("is_dir: not a directory\n");
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+int shell_cp_helper(char *dst, char *src, int isRecursive) {
+  char path[BUFFER_SIZE];
+  char filename[BUFFER_SIZE];
+  char dst_buf[BUFFER_SIZE];
+  char src_buf[BUFFER_SIZE];
+  char *p;
+  printf("shell_cp_helper: dst: %s, src: %s, isRecursive: %d\n", dst, src, isRecursive);
+  if (!does_file_exist(src)) {
+    printf("shell_cp_helper: file does not exist!\n");
+    return 0;
+  }
+
+  if (isRecursive == 0) {
+    if (is_dir(src)) {
+      printf("shell_cp_helper: cannot copy directory without -r flag!\n");
+      return 0;
+    }
+
+    // src is a file
+    if (does_file_exist(dst) && is_dir(dst)) {
+      // dst is a directory
+      get_filename(src, filename);
+      strcpy(path, dst);
+      p = path + strlen(path);
+      *p++ = '/';
+      strcpy(p, filename);
+      shell_cp_helper(path, src, 0);
+    } else {
+      // dst is a file or DNE
+      copy_file(dst, src);
+    }
+  } else {
+    if (is_dir(src)) {
+      if (does_file_exist(dst)) {
+        if (is_dir(dst)) {
+          // dst is a directory
+          get_filename(src, filename);
+          strcpy(path, dst);
+          p = path + strlen(path);
+          *p++ = '/';
+          strcpy(p, filename);
+          shell_cp_helper(path, src, 1);
+        } else {
+          // dst is a file
+          printf("shell_cp_helper: cannot copy directory to file!\n");
+          return 0;
+        }
+      } else {
+        // dst DNE
+        copy_file(dst, src);
+        int num_dir_elements = ls(path, src);
+        p = path;
+        while (p - path < num_dir_elements) {
+          int dst_len, src_len;
+          if (strcmp(p, ".") == 0 || strcmp(p, "..") == 0) {
+            dst_len = strlen(dst);
+            src_len = strlen(src);
+
+            strcpy(dst_buf, dst);
+            strcpy(src_buf, src);
+
+            dst_buf[dst_len] = '/';
+            src_buf[src_len] = '/';
+            strcpy(dst_buf+dst_len+1, p);
+            strcpy(src_buf+src_len+1, p);
+
+            shell_cp_helper(dst_buf, src_buf, 1);
+          }
+          p += strlen(p) + 1;
+        }
+      }
+    } else {
+      // src is a file 
+      shell_cp_helper(dst, src, 0);
+    }
+  }
+
+  return 0;
+}
+
+void run_cmd(char *buff) {
+  char command[BUFFER_SIZE];
+  char flag[BUFFER_SIZE];
+  char param1[BUFFER_SIZE];
+  char param2[BUFFER_SIZE];
+  char shell_buf[10000];
+
+  memset(command, 0, BUFFER_SIZE);
+  memset(flag, 0, BUFFER_SIZE);
+  memset(param1, 0, BUFFER_SIZE);
+  memset(param2, 0, BUFFER_SIZE);
+
+  printf("readline: %s\n", (char*)buff);
+
+  parse(buff, command, flag, param1, param2);
+
+  printf("parsed: command: %s, flag: %s, param1: %s, param2: %s\n", command, flag, param1, param2);
+
+  if (strncmp(command, "mkdir", strlen("mkdir")) == 0){
+    if (mkdir(param1) != 0) printf("mkdir failed\n");
+  }
+  else if (strncmp(command, "cd", strlen("cd")) == 0){
+    if (chdir(param1) != 0 ) printf("cd failed\n");
+  }
+  else if (strncmp(command, "pwd", strlen("pwd")) == 0){
+    pwd(shell_buf);
+    printf("%s\n", shell_buf);
+    memset(shell_buf, 0, 10000);
+  }
+  else if (strncmp(command, "ls", strlen("ls")) == 0){
+    ls(shell_buf, param1);
+    printf("%s\n", shell_buf);
+    memset(shell_buf, 0, 10000);
+  }
+  else if (strncmp(command, "cat", strlen("cat")) == 0){
+    int fd = sys_open(param1, O_RDONLY);
+    if (fd==-1) {
+      printf("file does not exist\n");
+      return;
+    }
+    int read_size = sys_read(fd, shell_buf, sizeof(shell_buf) - 1);
+    shell_buf[read_size] = '\0';
+    printf("%s\n", shell_buf);
+    memset(shell_buf, 0, 10000);
+  }
+  else if (strncmp(command, "touch", strlen("touch")) == 0){
+    if (touch(param1) != 0) printf("touch failed\n");
+  }
+  else if (strncmp(command, "write", strlen("write")) == 0){
+    int fd = open(param2, O_WRONLY);
+    if (fd==-1) fd = open(param2, O_CREATE | O_WRONLY);
+    int write_size = sys_write(fd, param1, strlen(param1));
+    if (write_size != strlen(param1)) printf("write failed\n");
+    close(fd);
+  }
+  else if (strncmp(command, "append", strlen("append")) == 0){
+    int fd = open(param2, O_RDWR);
+    if (fd==-1) {
+      printf("file does not exist\n");
+      return;
+    }
+    int read_size = sys_read(fd, shell_buf, sizeof(shell_buf) - 1);
+    int idx = read_size;
+    for (int i=0;i<strlen(param1);i++){
+      if (idx<sizeof(shell_buf)-1) shell_buf[idx++] = param1[i];
+    }
+    shell_buf[idx++] = '\0';
+    sys_write(fd, param1, sizeof(shell_buf));
+    close(fd);
+    memset(shell_buf, 0, 10000);
+  }
+  else if (strncmp(command, "mv", strlen("mv")) == 0) {
+    // NOT IMPLEMENTED YET
+    char *src = param1;
+    char *dest = param2;
+
+    int fd = open(src, O_RDONLY);
+    if (fd==-1) {
+      printf("file does not exist\n");
+      return;
+    }
+  }
+  else if (strncmp(command, "isDir", strlen("isDir")) == 0) {
+    if (is_dir(param1)) {
+      printf("isDir: %s is a directory\n", param1);
+    } else {
+      printf("isDir: %s is not a directory\n", param1);
+    }
+  } else if (strncmp(command, "cp", strlen("cp")) == 0) {
+    char *src = param1;
+    char *dest = param2;
+
+    if (strncmp(flag, "-r", strlen("-r")) == 0) {
+      printf("running shell_cp_helper with recursive flag\n");
+      shell_cp_helper(dest, src, 1);
+    } else {
+      printf("running shell_cp_helper without recursive flag\n");
+      shell_cp_helper(dest, src, 0);
+    }
+  }
+}
+
+void shell_test() {
+  printf("--------------------TESTING SHELL--------------------\n");
+  char* cmds[6] = {
+    "mkdir test", "touch testfile.txt", "write hello testfile.txt", "cat testfile.txt", "append world testfile.txt", "cat testfile.txt"
+  };
+
+  for (int i = 0; i < 6; i++) {
+    run_cmd(cmds[i]);
+  }
+
+  printf("--------------------TESTING SHELL FINISHED--------------------\n");
+}
 int main(int argc, char **argv)
 {
   char s[10] = "prompt>";
-  char buff[128];
-  char command[128];
-  char flag[128];
-  char param1[128];
-  char param2[128];
-  char shell_buf[10000];
+  char buff[BUFFER_SIZE];
+  
+  /* MODES 
+    0 = normal
+    1 = test
+  */
+  int shell_mode = 0;
   
   chdir("~");
 
-  while(1) {
-    memset(buff, 0, 128);
-    memset(command, 0, 128);
-    memset(flag, 0, 128);
-    memset(param1, 0, 128);
-    memset(param2, 0, 128);
-    readline(buff, s);
-
-    printf("readline: %s\n", (char*)buff);
-
-    parse(buff, command, flag, param1, param2);
-
-    printf("parsed: command: %s, flag: %s, param1: %s, param2: %s\n", command, flag, param1, param2);
-
-    if (strncmp(command, "mkdir", strlen("mkdir")) == 0){
-      if (mkdir(param1) != 0) printf("mkdir failed\n");
-    }
-    else if (strncmp(command, "cd", strlen("cd")) == 0){
-      if (chdir(param1) != 0 ) printf("cd failed\n");
-    }
-    else if (strncmp(command, "pwd", strlen("pwd")) == 0){
-      pwd(shell_buf);
-      printf("%s\n", shell_buf);
-      memset(shell_buf, 0, 10000);
-    }
-    else if (strncmp(command, "ls", strlen("ls")) == 0){
-      ls(shell_buf, param1);
-      printf("%s\n", shell_buf);
-      memset(shell_buf, 0, 10000);
-    }
-    else if (strncmp(command, "cat", strlen("cat")) == 0){
-      int fd = sys_open(param1, O_RDONLY);
-      if (fd==-1) {
-        printf("file does not exist\n");
-        continue;
-      }
-      int read_size = sys_read(fd, shell_buf, sizeof(shell_buf) - 1);
-      shell_buf[read_size] = '\0';
-      printf("%s\n", shell_buf);
-      memset(shell_buf, 0, 10000);
-    }
-    else if (strncmp(command, "touch", strlen("touch")) == 0){
-      if (touch(param1) != 0) printf("touch failed\n");
-    }
-    else if (strncmp(command, "write", strlen("write")) == 0){
-      int fd = open(param2, O_WRONLY);
-      if (fd==-1) fd = open(param2, O_CREATE | O_WRONLY);
-      int write_size = sys_write(fd, param1, strlen(param1));
-      if (write_size != strlen(param1)) printf("write failed\n");
-      close(fd);
-    }
-    else if (strncmp(command, "append", strlen("append")) == 0){
-      int fd = open(param2, O_RDWR);
-      if (fd==-1) {
-        printf("file does not exist\n");
-        continue;
-      }
-      int read_size = sys_read(fd, shell_buf, sizeof(shell_buf) - 1);
-      int idx = read_size;
-      for (int i=0;i<strlen(param1);i++){
-        if (idx<sizeof(shell_buf)-1) shell_buf[idx++] = param1[i];
-      }
-      shell_buf[idx++] = '\0';
-      sys_write(fd, param1, sizeof(shell_buf));
-      close(fd);
-      memset(shell_buf, 0, 10000);
+  if (shell_mode == 1) {
+    shell_test();
+  } else if (shell_mode == 0) {
+    while(1) {
+      memset(buff, 0, BUFFER_SIZE);
+      readline(buff, s);
+      run_cmd(buff);
     }
   }
 }

@@ -9,7 +9,7 @@
 #include <types.h>
 #include <x86.h>
 #include <file.h>
-#
+
 static gcc_inline void sys_readline(char *buf, char *prompt) {
     asm volatile ("int %0" 
                   :: "i" (T_SYSCALL), 
@@ -234,7 +234,7 @@ static gcc_inline int sys_ls(char *buf, char *path)
                     "D" (path_len)
                   : "cc", "memory");
 
-    return errno ? -1 : 0;
+    return errno ? -1 : ret;
 }
 
 static gcc_inline int sys_touch(char *path)
@@ -251,6 +251,19 @@ static gcc_inline int sys_touch(char *path)
                   : "cc", "memory");
 
     return errno ? -1 : 0;
+}
+
+static gcc_inline int sys_is_dir(int fd) 
+{
+    int errno, ret;
+    asm volatile ("int %2"
+                  : "=a" (errno), "=b" (ret)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_is_dir),
+                    "b" (fd)
+                  : "cc", "memory");
+
+    return errno ? -1 : ret;
 }
 
 #endif  /* !_USER_SYSCALL_H_ */

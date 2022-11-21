@@ -582,6 +582,7 @@ void sys_ls(tf_t *tf)
     }
 
     int idx = 0;
+    int len = 0;
     uint32_t off;
     struct dirent de;
 
@@ -593,12 +594,15 @@ void sys_ls(tf_t *tf)
             strncpy(kernel_buf+idx, de.name, strlen(de.name));
             idx += strlen(de.name);
             kernel_buf[idx++] = '\t';
+            len += 1;
         }
+
     }
 
     pt_copyout(kernel_buf, pid, buf, idx);
     memset(kernel_buf, 0, 10000);
     syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, len);
     spinlock_release(&buf_lk);
     return;
 
@@ -623,4 +627,21 @@ void sys_touch(tf_t *tf)
     inode_unlockput(ip);
     commit_trans();
     syscall_set_errno(tf, E_SUCC);
+}
+
+void sys_is_dir(tf_t *tf) {
+    struct file *fp;
+    int type;
+    unsigned int curid = get_curid();
+    int fd = syscall_get_arg2(tf);
+    fp = tcb_get_openfiles(curid)[fd];
+    if (!fp || !fp->ip) {
+        KERN_INFO("sys_is_dir: fp or fp->ip is NULL");
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+    type = fp->ip->type;
+    syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, (type == T_DIR));
 }
