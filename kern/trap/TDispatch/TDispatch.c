@@ -103,6 +103,9 @@ void syscall_dispatch(tf_t *tf)
     case SYS_touch:
         sys_touch(tf);
         break;
+    case SYS_is_dir:
+        sys_is_dir(tf);
+        break;
     default:
         syscall_set_errno(tf, E_INVAL_CALLNR);
     }

@@ -47,6 +47,7 @@ enum __syscall_nr {
     SYS_pwd,
     SYS_ls,
     SYS_touch,
+    SYS_is_dir,
     
 
     MAX_SYSCALL_NR  /* XXX: always put it at the end of __syscall_nr */
