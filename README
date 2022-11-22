@@ -14,7 +14,7 @@ List here the following info:
 4. and anything else you would like us to know
 
 
-I worked with Chris Nathan (cjn26).
+I worked with Benjamin Chen (blc38) and we coded this assignment together.
 
 Exercise 2
 thread_sleep causes a thread that is waiting on a lock for a memory channel to go to sleep, and be woken up by the lock-holder of that respective channel using thread_wakeup. This is implemented by having a channel field in the TCBs, that is traversed by thread_wakeup when the channel-user thread is done execution on that respective memory channel.
@@ -53,14 +53,48 @@ Added appropriate spinlocks
 
 Part 4: Shell
 Implemented commands:
-ls - includes performing ls on a path
-pwd
-cd
-cp - we did not implement the recursive option
-mv - does not handle directory moves
-rm - we did not implement the recursive option
-mkdir
-cat
-touch
-write (string with quotations or a single string) [file]
-append (string with quotations or a single string) [file]
+ls [path] - includes performing ls on a path
+pwd - traverses path backwards via ".." directory
+cd [path] - changes directory to the specified path
+cp [source] [dest] - we did not implement the recursive option
+mv [source] [dest] - since we did not implement the recursive option for cp and rm, mv is not recursive
+rm [path] - we did not implement the recursive option
+mkdir [name] - makes new directory with specified name in the current directory
+cat [path] - prints out file contents to stdout
+touch [name] - creates a new file of specified name in the current directory
+write (string with quotations or a single string) [file] - writes specified string to file, overwriting contents
+append (string with quotations or a single string) [file] - appends specified string to file
+
+## Example shell run
+
+prompt> mkdir ben
+prompt> touch test
+prompt> ls
+.       ..      README  ben     test
+prompt> write "this is a test" test
+prompt> cat test
+this is a test
+prompt> mv test ben
+prompt> ls
+.       ..      README  ben
+prompt> cd ben
+prompt> pwd
+/ben
+prompt> ls
+.       ..      test
+prompt> cat test
+this is a test
+prompt> append " and another test" test
+prompt> mkdir longfei
+prompt> ls
+.       ..      test    longfei
+prompt> cp test longfei
+prompt> cat test/longfei
+file does not exist
+prompt> ls longfei
+.       ..      test
+prompt> cat longfei/test
+this is a test and another test
+prompt> rm longfei/test
+prompt> ls longfei
+.       ..

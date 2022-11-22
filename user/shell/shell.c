@@ -311,7 +311,7 @@ void shell_rm_helper(char *path, int isRecursive) {
 }
 
 void shell_mv(char *dst, char *src) {
-  shell_cp_helper(dst, src, 0);
+  shell_cp_helper(dst, src, 1);
   sys_unlink(src);
   // just copy src into dest, then remove src
   // shell_cp_helper(dst, src, 0);
