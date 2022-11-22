@@ -10,6 +10,7 @@ const int STATE_FLAG = 1;
 const int STATE_PARAM = 2;
 const int STATE_PARSE = 4;
 const int STATE_INIT = 5;
+const int STATE_QUOTE = 6;
 
 void parse(char* buff, char* command, char* flag, char* param1, char* param2) {
   int STATE = STATE_INIT;
@@ -40,6 +41,9 @@ void parse(char* buff, char* command, char* flag, char* param1, char* param2) {
           *curr_flag= *buff;
           curr_flag++;
           STATE = STATE_FLAG;
+        } else if (*buff == '"') {
+          STATE = STATE_QUOTE;
+          break;
         } else if (*buff != ' ') {
           if (!has_param1) {
             *curr_param1= *buff;
@@ -90,6 +94,16 @@ void parse(char* buff, char* command, char* flag, char* param1, char* param2) {
           }
         }
         break;
+      case STATE_QUOTE:
+        if (*buff == '"') {
+          has_param1 = 1;
+          STATE = STATE_PARSE;
+        } else {
+          if (!has_param1) {
+            *curr_param1 = *buff;
+            curr_param1++;
+          }
+        }
     }
     buff++;
   }

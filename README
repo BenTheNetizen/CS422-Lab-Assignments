@@ -12,3 +12,29 @@ List here the following info:
 2. whether you coded this assignment together, and if not, who worked on which part
 3. brief description of what you have implemented
 4. and anything else you would like us to know
+
+
+I worked with Chris Nathan (cjn26).
+
+Exercise 2
+thread_sleep causes a thread that is waiting on a lock for a memory channel to go to sleep, and be woken up by the lock-holder of that respective channel using thread_wakeup. This is implemented by having a channel field in the TCBs, that is traversed by thread_wakeup when the channel-user thread is done execution on that respective memory channel.
+
+
+Exercise 3
+Added another case to handle disk interrupts. Calls ide_intr() and intr_eoi() to handle the interrupt and signal the end of it once interrupt has been handles. Also added a case to handle the spurious IDQ_IDE2 signals.
+
+
+Exercise 9
+In dir_lookup, we read all the directory entries in the directory inode by using inode_read on the respective directory entry offsets. Once we find an inode that has a directory name matching the 'name' parameter, we return that inode.
+
+In dir_link we perform dir_lookup to check if the name is present in the directory inode, to ensure that the subdirectory exists. Then we look for an empty directory entry by looking through all the directory entry offsets using inode_read. We call inode_write on the available directory entry.
+
+
+Exercise 10
+We implemented skipelem by looping through the path and setting conditions accordingly to achieve the desired behavior.
+
+We process one element at a time using skipelem, then performing dir_lookup on the each element to eventually reach the end of the path and return its inode. We make sure to lock the inode before performing dir_lookup.
+
+Exercise 12
+
+
