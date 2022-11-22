@@ -36,5 +36,31 @@ We implemented skipelem by looping through the path and setting conditions accor
 We process one element at a time using skipelem, then performing dir_lookup on the each element to eventually reach the end of the path and return its inode. We make sure to lock the inode before performing dir_lookup.
 
 Exercise 12
+Modified the implementations of the sys_link, sys_unlink, sys_open, sys_mkdir, and sys_chdir to pass in string input lengths to limit length of data that can be passed from the user.
+
+Exercise 13
+sys_read - opens a file from file descriptor using tcb_get_openfiles and then performs file_read on the opened file
+
+sys_write - opens a file from the file descriptor using tcb_get_openfiles and then performs file_write on the opened file
+
+sys_close - closes a file specified by the file descriptor using tcb_get_openfiles
+
+sys_fstat - retrieves file specified by file descriptor using tcb_get_openfiles, followed by calling file_stat on this file
+
+Exercise 15
+Added appropriate spinlocks
 
 
+Part 4: Shell
+Implemented commands:
+ls - includes performing ls on a path
+pwd
+cd
+cp - we did not implement the recursive option
+mv - does not handle directory moves
+rm - we did not implement the recursive option
+mkdir
+cat
+touch
+write (string with quotations or a single string) [file]
+append (string with quotations or a single string) [file]
