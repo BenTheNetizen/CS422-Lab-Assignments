@@ -494,8 +494,9 @@ void sys_chdir(tf_t *tf)
 
     pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
     path[path_len] ='\0';
-
+    dprintf("sys_chdir: path = %s\n", path);
     if ((ip = namei(path)) == 0) {
+        dprintf("chdir: namei failed\n");
         syscall_set_errno(tf, E_DISK_OP);
         return;
     }
@@ -570,12 +571,20 @@ void sys_ls(tf_t *tf)
     int pid = get_curid();
     struct inode *ip;
     unsigned int path_len = syscall_get_arg6(tf);
+    if (path_len >= 128) path_len = 127;
     
     if (path_len > 0) {
+        // then we call ls on a specific path
         pt_copyin(pid, syscall_get_arg4(tf), path, path_len);
+        path[path_len] = '\0';
+        dprintf("called ls with path %s\n", path);
         if ((ip = namei(path)) == 0) {
+            // path DNE
+            dprintf("sys ls: path %s does not exist\n", path);
             syscall_set_errno(tf, E_NEXIST);
-        return;
+            syscall_set_retval1(tf, -1);
+            spinlock_release(&buf_lk);
+            return;
         }
     } else {
         ip = tcb_get_cwd(pid);

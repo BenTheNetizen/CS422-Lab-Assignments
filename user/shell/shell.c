@@ -136,6 +136,11 @@ void copy_file(char* dst, char*src) {
   close(fd);
 }
 
+void remove_file(char *filename) {
+  if (sys_unlink(filename) < 0) {
+    printf("rm: cannot remove '%s': No such file or directory\n", filename);
+  }
+}
 int does_file_exist(char *filename) {
   int fd = open(filename, O_RDONLY);
   if (fd < 0) {
@@ -187,15 +192,17 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
       // dst is a directory
       get_filename(src, filename);
       strcpy(path, dst);
+      printf("path: %s, filename: %s\n");
       p = path + strlen(path);
       *p++ = '/';
       strcpy(p, filename);
-      shell_cp_helper(path, src, 0);
+      shell_cp_helper(path, src, isRecursive);
     } else {
       // dst is a file or DNE
       copy_file(dst, src);
     }
   } else {
+    // recursive flag on
     if (is_dir(src)) {
       if (does_file_exist(dst)) {
         if (is_dir(dst)) {
@@ -205,7 +212,7 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
           p = path + strlen(path);
           *p++ = '/';
           strcpy(p, filename);
-          shell_cp_helper(path, src, 1);
+          shell_cp_helper(path, src, isRecursive);
         } else {
           // dst is a file
           printf("shell_cp_helper: cannot copy directory to file!\n");
@@ -213,12 +220,15 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
         }
       } else {
         // dst DNE
+        printf("shell_cp_helper BEFORE: dst: %s, src: %s, isRecursive: %d\n", dst, src, isRecursive);
         copy_file(dst, src);
+        printf("shell_cp_helper AFTER: dst: %s, src: %s, isRecursive: %d\n", dst, src, isRecursive);
         int num_dir_elements = ls(path, src);
-        p = path;
+        printf("num_dir_elements in src %s: %d\n", src, num_dir_elements);
+        p = path; // THIS LINE AND BELOW IS CAUSING THE ISSUES
         while (p - path < num_dir_elements) {
           int dst_len, src_len;
-          if (strcmp(p, ".") == 0 || strcmp(p, "..") == 0) {
+          if (strcmp(p, ".") && strcmp(p, "..")) {
             dst_len = strlen(dst);
             src_len = strlen(src);
 
@@ -230,7 +240,7 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
             strcpy(dst_buf+dst_len+1, p);
             strcpy(src_buf+src_len+1, p);
 
-            shell_cp_helper(dst_buf, src_buf, 1);
+            shell_cp_helper(dst_buf, src_buf, isRecursive);
           }
           p += strlen(p) + 1;
         }
@@ -244,6 +254,24 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
   return 0;
 }
 
+int shell_rm_helper(char *path, int isRecursive) {
+  if (isRecursive) {
+    // remove file is simple
+    if (!is_dir(path)) {
+      remove_file(path);
+      return;
+    }
+
+    // path is a non empty directory
+
+  }
+}
+
+void shell_mv(char *dst, char *src) {
+  // just copy src into dest, then remove src
+  // shell_cp_helper(dst, src, 0);
+  // shell_rm_helper(src, 0);
+}
 void run_cmd(char *buff) {
   char command[BUFFER_SIZE];
   char flag[BUFFER_SIZE];
@@ -274,8 +302,11 @@ void run_cmd(char *buff) {
     memset(shell_buf, 0, 10000);
   }
   else if (strncmp(command, "ls", strlen("ls")) == 0){
-    ls(shell_buf, param1);
-    printf("%s\n", shell_buf);
+    if (ls(shell_buf, param1) == -1) {
+      printf("cannot access '%s': no such file or directory\n", param1);
+    } else {
+      printf("%s\n", shell_buf);
+    }
     memset(shell_buf, 0, 10000);
   }
   else if (strncmp(command, "cat", strlen("cat")) == 0){
@@ -335,7 +366,7 @@ void run_cmd(char *buff) {
   } else if (strncmp(command, "cp", strlen("cp")) == 0) {
     char *src = param1;
     char *dest = param2;
-
+    printf("called cp with src: %s, dest: %s\n", src, dest);
     if (strncmp(flag, "-r", strlen("-r")) == 0) {
       printf("running shell_cp_helper with recursive flag\n");
       shell_cp_helper(dest, src, 1);
