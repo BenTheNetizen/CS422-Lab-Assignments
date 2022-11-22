@@ -188,7 +188,7 @@ int is_dir(char *filename) {
   isDir = sys_is_dir(fd);
   close(fd);
   if (isDir == 0) {
-    printf("is_dir: not a directory\n");
+    // printf("is_dir: not a directory\n");
     return 0;
   } else {
     return 1;
@@ -198,10 +198,9 @@ int is_dir(char *filename) {
 int shell_cp_helper(char *dst, char *src, int isRecursive) {
   char path[BUFFER_SIZE];
   char filename[BUFFER_SIZE];
-  char dst_buf[BUFFER_SIZE];
-  char src_buf[BUFFER_SIZE];
+  // char dst_buf[BUFFER_SIZE];
+  // char src_buf[BUFFER_SIZE];
   char *p;
-  printf("shell_cp_helper: dst: %s, src: %s, isRecursive: %d\n", dst, src, isRecursive);
   if (!does_file_exist(src)) {
     printf("shell_cp_helper: file does not exist!\n");
     return 0;
@@ -218,7 +217,6 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
       // dst is a directory
       get_filename(src, filename);
       strcpy(path, dst);
-      printf("path: %s, filename: %s\n");
       p = path + strlen(path);
       *p++ = '/';
       strcpy(p, filename);
@@ -235,7 +233,6 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
           // dst is a directory
           get_filename(src, filename);
           strcpy(path, dst);
-          printf("path: %s, filename: %s\n");
           p = path + strlen(path);
           *p++ = '/';
           strcpy(p, filename);
@@ -249,64 +246,45 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
         // dst DNE
         copy_file(dst, src);
         char ls_buff[BUFFER_SIZE];
-        char leaf_buff[BUFFER_SIZE];
+        // char leaf_buff[BUFFER_SIZE];
         int num_dir_elements = ls(ls_buff, src);
-        int ls_buff_idx = 0;
-        int leaf_buff_idx = 0;
+        // int ls_buff_idx = 0;
+        // int leaf_buff_idx = 0;
 
-        printf("ls_buff: %s\n", ls_buff);
-        printf("curr path: %s\n", path);
-        printf("num_dir_elements in src %s: %d\n", src, num_dir_elements);
+        // printf("ls_buff: %s\n", ls_buff);
+        // printf("curr path: %s\n", path);
+        // printf("num_dir_elements in src %s: %d\n", src, num_dir_elements);
 
         /*
           loop over character in ls_buff
           append ls_buff[ls_buff_idx] to leaf_buff until see \t
           then run shell_cp_helper on get_parent_path(src) + leaf_buff
         */
-        while (ls_buff[ls_buff_idx] != '\0') {
-          if (ls_buff[ls_buff_idx] == '\t') {
-            leaf_buff[leaf_buff_idx] = '\0';
+        // while (ls_buff[ls_buff_idx] != '\0') {
+        //   if (ls_buff[ls_buff_idx] == '\t') {
+        //     leaf_buff[leaf_buff_idx] = '\0';
 
-            char parent_path[BUFFER_SIZE];
-            get_parent_path(src, parent_path);
-            printf("parent_path: %s, leaf_buff: %s\n", parent_path, leaf_buff);
-            // set path equal to concatenation of parent_path and leaf_buff
-            for (int i = 0; i < strlen(parent_path); i++) {
-              path[i] = parent_path[i];
-            }
+        //     char parent_path[BUFFER_SIZE];
+        //     get_parent_path(src, parent_path);
+        //     printf("parent_path: %s, leaf_buff: %s\n", parent_path, leaf_buff);
+        //     // set path equal to concatenation of parent_path and leaf_buff
+        //     for (int i = 0; i < strlen(parent_path); i++) {
+        //       path[i] = parent_path[i];
+        //     }
 
-            path[strlen(parent_path)] = '/';
+        //     path[strlen(parent_path)] = '/';
 
-            for (int i = 0; i < strlen(leaf_buff); i++) {
-              path[strlen(parent_path)+1+i] = leaf_buff[i];
-            }
-            path[strlen(parent_path)+1+strlen(leaf_buff)] = '\0';
-            // we now need to run the shell_cp_helper
-            shell_cp_helper(dst, path, isRecursive);
-          } else {
-            leaf_buff[leaf_buff_idx] = ls_buff[ls_buff_idx];
-            leaf_buff_idx++;
-          }
-          ls_buff_idx++;
-        }
-        // p = path; // THIS LINE AND BELOW IS CAUSING THE ISSUES
-        // while (p - path < num_dir_elements) {
-        //   int dst_len, src_len;
-        //   if (strcmp(p, ".") && strcmp(p, "..")) {
-        //     dst_len = strlen(dst);
-        //     src_len = strlen(src);
-
-        //     strcpy(dst_buf, dst);
-        //     strcpy(src_buf, src);
-
-        //     dst_buf[dst_len] = '/';
-        //     src_buf[src_len] = '/';
-        //     strcpy(dst_buf+dst_len+1, p);
-        //     strcpy(src_buf+src_len+1, p);
-
-        //     shell_cp_helper(dst_buf, src_buf, isRecursive);
+        //     for (int i = 0; i < strlen(leaf_buff); i++) {
+        //       path[strlen(parent_path)+1+i] = leaf_buff[i];
+        //     }
+        //     path[strlen(parent_path)+1+strlen(leaf_buff)] = '\0';
+        //     // we now need to run the shell_cp_helper
+        //     shell_cp_helper(dst, path, isRecursive);
+        //   } else {
+        //     leaf_buff[leaf_buff_idx] = ls_buff[ls_buff_idx];
+        //     leaf_buff_idx++;
         //   }
-        //   p += strlen(p) + 1;
+        //   ls_buff_idx++;
         // }
       }
     } else {
@@ -319,19 +297,22 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
 }
 
 void shell_rm_helper(char *path, int isRecursive) {
-  if (isRecursive) {
-    // remove file is simple
-    if (!is_dir(path)) {
-      remove_file(path);
-      return;
-    }
+  remove_file(path);
+  // if (isRecursive) {
+  //   // remove file is simple
+  //   if (!is_dir(path)) {
+  //     remove_file(path);
+  //     return;
+  //   }
 
-    // path is a non empty directory
+  //   // path is a non empty directory
 
-  }
+  // }
 }
 
 void shell_mv(char *dst, char *src) {
+  shell_cp_helper(dst, src, 0);
+  sys_unlink(src);
   // just copy src into dest, then remove src
   // shell_cp_helper(dst, src, 0);
   // shell_rm_helper(src, 0);
@@ -348,11 +329,11 @@ void run_cmd(char *buff) {
   memset(param1, 0, BUFFER_SIZE);
   memset(param2, 0, BUFFER_SIZE);
 
-  printf("readline: %s\n", (char*)buff);
+  // printf("readline: %s\n", (char*)buff);
 
   parse(buff, command, flag, param1, param2);
 
-  printf("parsed: command: %s, flag: %s, param1: %s, param2: %s\n", command, flag, param1, param2);
+  // printf("parsed: command: %s, flag: %s, param1: %s, param2: %s\n", command, flag, param1, param2);
 
   if (strncmp(command, "mkdir", strlen("mkdir")) == 0){
     if (mkdir(param1) != 0) printf("mkdir failed\n");
@@ -411,15 +392,9 @@ void run_cmd(char *buff) {
     memset(shell_buf, 0, 10000);
   }
   else if (strncmp(command, "mv", strlen("mv")) == 0) {
-    // NOT IMPLEMENTED YET
     char *src = param1;
     char *dest = param2;
-
-    int fd = open(src, O_RDONLY);
-    if (fd==-1) {
-      printf("file does not exist\n");
-      return;
-    }
+    shell_mv(dest, src);
   }
   else if (strncmp(command, "isDir", strlen("isDir")) == 0) {
     if (is_dir(param1)) {
@@ -430,12 +405,9 @@ void run_cmd(char *buff) {
   } else if (strncmp(command, "cp", strlen("cp")) == 0) {
     char *src = param1;
     char *dest = param2;
-    printf("called cp with src: %s, dest: %s\n", src, dest);
     if (strncmp(flag, "-r", strlen("-r")) == 0) {
-      printf("running shell_cp_helper with recursive flag\n");
       shell_cp_helper(dest, src, 1);
     } else {
-      printf("running shell_cp_helper without recursive flag\n");
       shell_cp_helper(dest, src, 0);
     }
   } else if (strncmp(command, "get_filename", strlen("get_filename")) == 0) {
@@ -451,15 +423,9 @@ void run_cmd(char *buff) {
     memset(parent, 0, 100);
   } else if (strncmp(command, "rm", strlen("rm")) == 0) {
     if (strncmp(flag, "-r", strlen("-r")) == 0) {
-      // shell_rm_helper(param1, 1);
-      if (sys_unlink(param1) < 0) {
-        printf("rm: cannot remove '%s': No such file or directory\n", param1);
-      }
+      shell_rm_helper(param1, 1);
     } else {
-      // shell_rm_helper(param1, 0);
-      if (sys_unlink(param1) < 0) {
-        printf("rm: cannot remove '%s': No such file or directory\n", param1);
-      }
+      shell_rm_helper(param1, 0);
     }
   }
 }
@@ -487,7 +453,7 @@ int main(int argc, char **argv)
   */
   int shell_mode = 0;
   
-  chdir("~");
+  chdir(".");
 
   if (shell_mode == 1) {
     shell_test();

@@ -495,7 +495,6 @@ void sys_chdir(tf_t *tf)
 
     pt_copyin(get_curid(), syscall_get_arg2(tf), path, path_len);
     path[path_len] ='\0';
-    dprintf("sys_chdir: path = %s\n", path);
     if ((ip = namei(path)) == 0) {
         dprintf("chdir: namei failed\n");
         syscall_set_errno(tf, E_DISK_OP);
@@ -578,7 +577,6 @@ void sys_ls(tf_t *tf)
         // then we call ls on a specific path
         pt_copyin(pid, syscall_get_arg4(tf), path, path_len);
         path[path_len] = '\0';
-        dprintf("called ls with path %s\n", path);
         if ((ip = namei(path)) == 0) {
             // path DNE
             dprintf("sys ls: path %s does not exist\n", path);
