@@ -65,6 +65,8 @@ touch [name] - creates a new file of specified name in the current directory
 write (string with quotations or a single string) [file] - writes specified string to file, overwriting contents
 append (string with quotations or a single string) [file] - appends specified string to file
 
+** In order to run shell instead of fstest, we defined a "TEST" variable on line 6 of idle.c. To run fstest, uncomment this line so TEST is defined.
+
 ## Example shell run
 
 prompt> mkdir ben
