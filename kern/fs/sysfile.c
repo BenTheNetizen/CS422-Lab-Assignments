@@ -407,6 +407,7 @@ static struct inode *create(char *path, short type, short major, short minor)
     return ip;
 }
 
+// opens a file descriptor
 void sys_open(tf_t *tf)
 {
     char path[128];
@@ -595,6 +596,7 @@ void sys_ls(tf_t *tf)
     uint32_t off;
     struct dirent de;
 
+    // inode read stores the dirent in 'de' at a specified offset
     for (off = 0; off < ip->size; off+=sizeof(de)){
         if (inode_read(ip, (char*)&de, off, sizeof(de)) != sizeof(de)){
             KERN_PANIC("dir_lookup fail");

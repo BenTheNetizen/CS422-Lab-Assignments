@@ -7,7 +7,7 @@
 #define DIRSIZ 14
 
 struct dirent {
-    uint16_t inum;
+    uint16_t inum; // inode number
     char name[DIRSIZ];
 };
 

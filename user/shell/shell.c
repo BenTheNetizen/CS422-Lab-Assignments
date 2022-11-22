@@ -121,6 +121,18 @@ void get_filename(char* path, char*filename) {
   strncpy(filename, path+i+1, n-i-1);
 }
 
+void get_parent_path(char* path, char* parent_path) {
+  int n = strlen(path);
+  if (n == 0) {
+    return;
+  }
+  int i = n-1;
+  while (i >= 0 && path[i] != '/') {
+    i--;
+  }
+  strncpy(parent_path, path, i);
+}
+
 void copy_file(char* dst, char*src) {
   // if source is a directory, need to make destination a directory
   if (is_dir(src)) {
@@ -209,6 +221,7 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
           // dst is a directory
           get_filename(src, filename);
           strcpy(path, dst);
+          printf("path: %s, filename: %s\n");
           p = path + strlen(path);
           *p++ = '/';
           strcpy(p, filename);
@@ -220,30 +233,67 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
         }
       } else {
         // dst DNE
-        printf("shell_cp_helper BEFORE: dst: %s, src: %s, isRecursive: %d\n", dst, src, isRecursive);
         copy_file(dst, src);
-        printf("shell_cp_helper AFTER: dst: %s, src: %s, isRecursive: %d\n", dst, src, isRecursive);
-        int num_dir_elements = ls(path, src);
+        char ls_buff[BUFFER_SIZE];
+        char leaf_buff[BUFFER_SIZE];
+        int num_dir_elements = ls(ls_buff, src);
+        int ls_buff_idx = 0;
+        int leaf_buff_idx = 0;
+
+        printf("ls_buff: %s\n", ls_buff);
+        printf("curr path: %s\n", path);
         printf("num_dir_elements in src %s: %d\n", src, num_dir_elements);
-        p = path; // THIS LINE AND BELOW IS CAUSING THE ISSUES
-        while (p - path < num_dir_elements) {
-          int dst_len, src_len;
-          if (strcmp(p, ".") && strcmp(p, "..")) {
-            dst_len = strlen(dst);
-            src_len = strlen(src);
 
-            strcpy(dst_buf, dst);
-            strcpy(src_buf, src);
+        /*
+          loop over character in ls_buff
+          append ls_buff[ls_buff_idx] to leaf_buff until see \t
+          then run shell_cp_helper on get_parent_path(src) + leaf_buff
+        */
+        while (ls_buff[ls_buff_idx] != '\0') {
+          if (ls_buff[ls_buff_idx] == '\t') {
+            leaf_buff[leaf_buff_idx] = '\0';
 
-            dst_buf[dst_len] = '/';
-            src_buf[src_len] = '/';
-            strcpy(dst_buf+dst_len+1, p);
-            strcpy(src_buf+src_len+1, p);
+            char parent_path[BUFFER_SIZE];
+            get_parent_path(src, parent_path);
+            printf("parent_path: %s, leaf_buff: %s\n", parent_path, leaf_buff);
+            // set path equal to concatenation of parent_path and leaf_buff
+            for (int i = 0; i < strlen(parent_path); i++) {
+              path[i] = parent_path[i];
+            }
 
-            shell_cp_helper(dst_buf, src_buf, isRecursive);
+            path[strlen(parent_path)] = '/';
+
+            for (int i = 0; i < strlen(leaf_buff); i++) {
+              path[strlen(parent_path)+1+i] = leaf_buff[i];
+            }
+            path[strlen(parent_path)+1+strlen(leaf_buff)] = '\0';
+            // we now need to run the shell_cp_helper
+            shell_cp_helper(dst, path, isRecursive);
+          } else {
+            leaf_buff[leaf_buff_idx] = ls_buff[ls_buff_idx];
+            leaf_buff_idx++;
           }
-          p += strlen(p) + 1;
+          ls_buff_idx++;
         }
+        // p = path; // THIS LINE AND BELOW IS CAUSING THE ISSUES
+        // while (p - path < num_dir_elements) {
+        //   int dst_len, src_len;
+        //   if (strcmp(p, ".") && strcmp(p, "..")) {
+        //     dst_len = strlen(dst);
+        //     src_len = strlen(src);
+
+        //     strcpy(dst_buf, dst);
+        //     strcpy(src_buf, src);
+
+        //     dst_buf[dst_len] = '/';
+        //     src_buf[src_len] = '/';
+        //     strcpy(dst_buf+dst_len+1, p);
+        //     strcpy(src_buf+src_len+1, p);
+
+        //     shell_cp_helper(dst_buf, src_buf, isRecursive);
+        //   }
+        //   p += strlen(p) + 1;
+        // }
       }
     } else {
       // src is a file 
@@ -254,7 +304,7 @@ int shell_cp_helper(char *dst, char *src, int isRecursive) {
   return 0;
 }
 
-int shell_rm_helper(char *path, int isRecursive) {
+void shell_rm_helper(char *path, int isRecursive) {
   if (isRecursive) {
     // remove file is simple
     if (!is_dir(path)) {
@@ -373,6 +423,29 @@ void run_cmd(char *buff) {
     } else {
       printf("running shell_cp_helper without recursive flag\n");
       shell_cp_helper(dest, src, 0);
+    }
+  } else if (strncmp(command, "get_filename", strlen("get_filename")) == 0) {
+    char filename[100];
+
+    get_filename(param1, filename);
+    printf("get_filename: %s\n", filename);
+  } else if (strncmp(command, "get_parent", strlen("get_parent")) == 0) {
+    char parent[100];
+
+    get_parent_path(param1, parent);
+    printf("get_parent: %s\n", parent);
+    memset(parent, 0, 100);
+  } else if (strncmp(command, "rm", strlen("rm")) == 0) {
+    if (strncmp(flag, "-r", strlen("-r")) == 0) {
+      // shell_rm_helper(param1, 1);
+      if (sys_unlink(param1) < 0) {
+        printf("rm: cannot remove '%s': No such file or directory\n", param1);
+      }
+    } else {
+      // shell_rm_helper(param1, 0);
+      if (sys_unlink(param1) < 0) {
+        printf("rm: cannot remove '%s': No such file or directory\n", param1);
+      }
     }
   }
 }
