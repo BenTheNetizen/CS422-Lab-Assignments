@@ -5,6 +5,7 @@
 #include <kern/lib/pmap.h>
 #include <kern/lib/string.h>
 #include <kern/lib/trap.h>
+#include <kern/lib/spinlock.h>
 #include <kern/lib/syscall.h>
 #include <kern/thread/PTCBIntro/export.h>
 #include <kern/thread/PCurID/export.h>
@@ -16,6 +17,24 @@
 #include "fcntl.h"
 #include "log.h"
 
+#define BUFLEN_MAX 10000
+char fsbuf[BUFLEN_MAX];
+spinlock_t fsbuf_lk;
+
+void fs_init(void) {
+    spinlock_init(&fsbuf_lk);
+}
+
+static bool check_buf(tf_t *tf, uintptr_t buf, size_t len, size_t maxlen) {
+    if (!(VM_USERLO <= buf && buf + len <= VM_USERHI)
+        || (0 < maxlen && maxlen <= len)) {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        syscall_set_retval1(tf, -1);
+        return FALSE;
+    }
+    return TRUE;
+}
+
 /**
  * This function is not a system call handler, but an auxiliary function
  * used by sys_open.
@@ -26,7 +45,17 @@
  */
 static int fdalloc(struct file *f)
 {
-    // TODO
+    int fd;
+    int pid = get_curid();
+    struct file **openfiles = tcb_get_openfiles(pid);
+
+    for (fd = 0; fd < NOFILE; fd++) {
+        if (openfiles[fd] == NULL) {
+            tcb_set_openfiles(pid, fd, f);
+            return fd;
+        }
+    }
+
     return -1;
 }
 
@@ -41,7 +70,41 @@ static int fdalloc(struct file *f)
  */
 void sys_read(tf_t *tf)
 {
-    // TODO
+    struct file *file;
+    int read;
+
+    int pid = get_curid();
+    int fd = syscall_get_arg2(tf);
+    uintptr_t buf = syscall_get_arg3(tf);
+    size_t buflen = syscall_get_arg4(tf);
+
+    if (!check_buf(tf, buf, buflen, BUFLEN_MAX)) {
+        return;
+    }
+    if (!(0 <= fd && fd < NOFILE)) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    file = tcb_get_openfiles(pid)[fd];
+    if (file == NULL || file->type != FD_INODE) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    spinlock_acquire(&fsbuf_lk);
+    read = file_read(file, fsbuf, buflen);
+    syscall_set_retval1(tf, read);
+    if (0 <= read) {
+        pt_copyout(fsbuf, pid, buf, buflen);
+        syscall_set_errno(tf, E_SUCC);
+    }
+    else {
+        syscall_set_errno(tf, E_BADF);
+    }
+    spinlock_release(&fsbuf_lk);
 }
 
 /**
@@ -55,7 +118,42 @@ void sys_read(tf_t *tf)
  */
 void sys_write(tf_t *tf)
 {
-    // TODO
+    struct file *file;
+    int written;
+
+    int pid = get_curid();
+    int fd = syscall_get_arg2(tf);
+    uintptr_t buf = syscall_get_arg3(tf);
+    size_t buflen = syscall_get_arg4(tf);
+
+    if (!check_buf(tf, buf, buflen, BUFLEN_MAX)) {
+        return;
+    }
+    if (!(0 <= fd && fd < NOFILE)) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    file = tcb_get_openfiles(pid)[fd];
+    if (file == NULL || file->type != FD_INODE) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    spinlock_acquire(&fsbuf_lk);
+    pt_copyin(pid, buf, fsbuf, buflen);
+    written = file_write(file, fsbuf, buflen);
+    spinlock_release(&fsbuf_lk);
+
+    syscall_set_retval1(tf, written);
+    if (0 <= written) {
+        syscall_set_errno(tf, E_SUCC);
+    }
+    else {
+        syscall_set_errno(tf, E_BADF);
+    }
 }
 
 /**
@@ -64,7 +162,29 @@ void sys_write(tf_t *tf)
  */
 void sys_close(tf_t *tf)
 {
-    // TODO
+    struct file *file;
+
+    int pid = get_curid();
+    int fd = syscall_get_arg2(tf);
+
+    if (!(0 <= fd && fd < NOFILE)) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    file = tcb_get_openfiles(pid)[fd];
+    if (file == NULL || file->ref < 1) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    file_close(file);
+    tcb_set_openfiles(pid, fd, NULL);
+
+    syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, 0);
 }
 
 /**
@@ -73,7 +193,38 @@ void sys_close(tf_t *tf)
  */
 void sys_fstat(tf_t *tf)
 {
-    // TODO
+    struct file *file;
+    struct file_stat fs_stat;
+
+    int pid = get_curid();
+    int fd = syscall_get_arg2(tf);
+    uintptr_t stat = syscall_get_arg3(tf);
+
+    if (!check_buf(tf, stat, sizeof(struct file_stat), 0)) {
+        return;
+    }
+    if (!(0 <= fd && fd < NOFILE)) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    file = tcb_get_openfiles(pid)[fd];
+    if (file == NULL || file->type != FD_INODE) {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+        return;
+    }
+
+    if (file_stat(file, &fs_stat) == 0) {
+        pt_copyout(&fs_stat, pid, stat, sizeof(struct file_stat));
+        syscall_set_errno(tf, E_SUCC);
+        syscall_set_retval1(tf, 0);
+    }
+    else {
+        syscall_set_errno(tf, E_BADF);
+        syscall_set_retval1(tf, -1);
+    }
 }
 
 /**
@@ -84,8 +235,17 @@ void sys_link(tf_t * tf)
     char name[DIRSIZ], new[128], old[128];
     struct inode *dp, *ip;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), old, 128);
-    pt_copyin(get_curid(), syscall_get_arg3(tf), new, 128);
+    uintptr_t uold = syscall_get_arg2(tf);
+    uintptr_t unew = syscall_get_arg3(tf);
+    uintptr_t oldlen = syscall_get_arg4(tf);
+    uintptr_t newlen = syscall_get_arg5(tf);
+
+    if (!check_buf(tf, uold, oldlen, 128) || !check_buf(tf, unew, newlen, 128)) {
+        return;
+    }
+
+    pt_copyin(get_curid(), uold, old, oldlen);
+    pt_copyin(get_curid(), unew, new, newlen);
 
     if ((ip = namei(old)) == 0) {
         syscall_set_errno(tf, E_NEXIST);
@@ -155,7 +315,14 @@ void sys_unlink(tf_t *tf)
     char name[DIRSIZ], path[128];
     uint32_t off;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    uintptr_t buf = syscall_get_arg2(tf);
+    size_t buflen = syscall_get_arg3(tf);
+
+    if (!check_buf(tf, buf, buflen, 128)) {
+        return;
+    }
+
+    pt_copyin(get_curid(), buf, path, buflen);
 
     if ((dp = nameiparent(path, name)) == 0) {
         syscall_set_errno(tf, E_DISK_OP);
@@ -257,7 +424,14 @@ void sys_open(tf_t *tf)
     struct file *f;
     struct inode *ip;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    uintptr_t buf = syscall_get_arg2(tf);
+    size_t buflen = syscall_get_arg4(tf);
+
+    if (!check_buf(tf, buf, buflen, 128)) {
+        return;
+    }
+
+    pt_copyin(get_curid(), buf, path, buflen);
     omode = syscall_get_arg3(tf);
 
     if (omode & O_CREATE) {
@@ -308,7 +482,14 @@ void sys_mkdir(tf_t *tf)
     char path[128];
     struct inode *ip;
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    uintptr_t buf = syscall_get_arg2(tf);
+    size_t buflen = syscall_get_arg3(tf);
+
+    if (!check_buf(tf, buf, buflen, 128)) {
+        return;
+    }
+
+    pt_copyin(get_curid(), buf, path, buflen);
 
     begin_trans();
     if ((ip = (struct inode *) create(path, T_DIR, 0, 0)) == 0) {
@@ -327,7 +508,14 @@ void sys_chdir(tf_t *tf)
     struct inode *ip;
     int pid = get_curid();
 
-    pt_copyin(get_curid(), syscall_get_arg2(tf), path, 128);
+    uintptr_t buf = syscall_get_arg2(tf);
+    size_t buflen = syscall_get_arg3(tf);
+
+    if (!check_buf(tf, buf, buflen, 128)) {
+        return;
+    }
+
+    pt_copyin(get_curid(), buf, path, buflen);
 
     if ((ip = namei(path)) == 0) {
         syscall_set_errno(tf, E_DISK_OP);

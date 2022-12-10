@@ -88,17 +88,40 @@ gcc_inline uint64_t rdtsc(void)
     return (rv);
 }
 
+#define XCR0_X87        0x00000001 /* x87 FPU / MMX */
+#define XCR0_SSE        0x00000002 /* SSE enable */
+#define XCR0_AVX        0x00000004 /* AVX enable */
+#define XCR0_AVX512     0x000000e0 /* AVX-512 enable */
+#define XCR0_PKRU       0x00000200 /* PKRU enable */
+
+gcc_inline void xsetbv(uint32_t xcr, uint64_t newval)
+{
+    asm volatile ("xsetbv"::"A"(newval), "c"(xcr));
+}
+
+gcc_inline void x86_fninit(void)
+{
+    asm volatile ("fninit");
+}
+
 gcc_inline void enable_sse(void)
 {
     uint32_t cr0, cr4;
 
-    cr4 = rcr4() | CR4_OSFXSR | CR4_OSXMMEXCPT;
+    x86_fninit();
+
+    cr4 = rcr4() | CR4_OSFXSR | CR4_OSXMMEXCPT | CR4_OSXSAVE;
     FENCE();
     lcr4(cr4);
 
     cr0 = rcr0() | CR0_MP;
-    FENCE();
     cr0 &= ~(CR0_EM | CR0_TS);
+    FENCE();
+    lcr0(cr0);
+
+    FENCE();
+    // not work without kvm
+    // xsetbv(0, XCR0_X87 | XCR0_SSE | XCR0_AVX);
 }
 
 gcc_inline void cpuid(uint32_t info, uint32_t *eaxp, uint32_t *ebxp,

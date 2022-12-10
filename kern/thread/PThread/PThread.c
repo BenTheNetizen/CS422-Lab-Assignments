@@ -101,12 +101,12 @@ void sched_update(void)
 void thread_sleep(void *chan, spinlock_t *lk)
 {
     // TODO: your local variables here.
-    unsigned int curr_pid;
-    unsigned int new_curr_pid;
+    unsigned int old_cur_pid;
+    unsigned int new_cur_pid;
+
     if (lk == 0)
         KERN_PANIC("sleep without lock");
 
-    // TODO:
     // Must acquire sched_lk in order to change the current thread's state and
     // then switch. Once we hold sched_lk, we can be guaranteed that we won't
     // miss any wakeup (wakeup runs with sched_lk locked), so it's okay to
@@ -114,25 +114,26 @@ void thread_sleep(void *chan, spinlock_t *lk)
     spinlock_acquire(&sched_lk);
     spinlock_release(lk);
 
-    // TODO: Go to sleep.
-    curr_pid = get_curid();
-    tcb_set_chan(curr_pid, chan);
-    tcb_set_state(curr_pid, TSTATE_SLEEP);
-    
-    // can you assume that a new ready process always exists?
-    // TODO: Context switch.
-    new_curr_pid = tqueue_dequeue(NUM_IDS);
-    tcb_set_state(new_curr_pid, TSTATE_RUN);
-    set_curid(new_curr_pid);
-    spinlock_release(&sched_lk);
-    kctx_switch(old_cur_pid, new_curr_pid);
+    // Go to sleep.
+    old_cur_pid = get_curid();
+    new_cur_pid = tqueue_dequeue(NUM_IDS);
+    KERN_ASSERT(new_cur_pid != NUM_IDS);
+    tcb_set_chan(old_cur_pid, chan);
+    tcb_set_state(old_cur_pid, TSTATE_SLEEP);
+    tcb_set_state(new_cur_pid, TSTATE_RUN);
+    set_curid(new_cur_pid);
 
-    // TODO: Tidy up.
+    // Context switch.
+    spinlock_release(&sched_lk);
+    kctx_switch(old_cur_pid, new_cur_pid);
     spinlock_acquire(&sched_lk);
-    tcb_set_chan(curr_pid, 0);
-    // TODO: Reacquire original lock.
-    spinlock_release(&sched_lk); // release first because to avoid deadlock (another thread may want to acquire the lock) 
+
+    // Tidy up.
+    tcb_set_chan(old_cur_pid, NULL);
+
+    // Reacquire original lock.
     spinlock_acquire(lk);
+    spinlock_release(&sched_lk);
 }
 
 /**
@@ -140,13 +141,12 @@ void thread_sleep(void *chan, spinlock_t *lk)
  */
 void thread_wakeup(void *chan)
 {
-    // TODO
+    unsigned int pid;
     spinlock_acquire(&sched_lk);
-    // DO NOT USE PID = 0 (this is kernel thread)
-    for (unsigned int pid = 1; pid < NUM_IDS; i++) {
-        if (tcb_get_chan(pid) == chan && tcb_get_state(pid) == TSTATE_SLEEP) {
+
+    for (pid = 0; pid < NUM_IDS; pid++) {
+        if (chan == tcb_get_chan(pid)) {
             tcb_set_state(pid, TSTATE_READY);
-            tcb_set_chan(pid, 0);
             tqueue_enqueue(NUM_IDS, pid);
         }
     }

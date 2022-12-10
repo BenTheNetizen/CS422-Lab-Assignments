@@ -31,3 +31,5 @@ $(KERN_OBJDIR)/dev/%.o: $(KERN_DIR)/dev/%.S
 	@echo + as[KERN/dev] $<
 	@mkdir -p $(@D)
 	$(V)$(CC) $(KERN_CFLAGS) -c -o $@ $<
+
+include		$(KERN_DIR)/dev/sse/Makefile.inc

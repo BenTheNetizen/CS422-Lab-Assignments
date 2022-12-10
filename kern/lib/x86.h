@@ -80,6 +80,7 @@
 #define CR4_PGE        0x00000080  /* Page Global Enable */
 #define CR4_OSFXSR     0x00000200  /* SSE and FXSAVE/FXRSTOR enable */
 #define CR4_OSXMMEXCPT 0x00000400  /* Unmasked SSE FP exceptions */
+#define CR4_OSXSAVE    0x00040000  /* Enable XSAVE */
 
 /* EFER */
 #define MSR_EFER      0xc0000080

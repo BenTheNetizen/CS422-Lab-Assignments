@@ -3,12 +3,15 @@
 #include <lib/types.h>
 #include <lib/x86.h>
 #include <lib/trap.h>
+#include <lib/string.h>
 #include <lib/syscall.h>
+#include <dev/console.h>
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
 
 #include "import.h"
 
+#define BUFLEN 1024  // from kern/dev/console.c
 static char sys_buf[NUM_IDS][PAGESIZE];
 
 /**
@@ -54,10 +57,38 @@ void sys_puts(tf_t *tf)
     syscall_set_errno(tf, E_SUCC);
 }
 
+void sys_readline(tf_t *tf)
+{
+    char *buf;
+    int read;
+    unsigned int curid = get_curid();
+    uintptr_t line = syscall_get_arg2(tf);
+    uintptr_t len = syscall_get_arg3(tf);
+
+    if (!(VM_USERLO <= line && line + len <= VM_USERHI)
+        || len >= BUFLEN) {
+        syscall_set_errno(tf, E_INVAL_ADDR);
+        return;
+    }
+
+    buf = readline("$> ");
+    len = min(strnlen(buf, BUFLEN - 1), len);
+    buf[len] = '\0';
+    read = pt_copyout(buf, curid, line, len + 1);
+    if (len > 0 && read == 0) {
+        syscall_set_errno(tf, E_MEM);
+        return;
+    }
+
+    syscall_set_errno(tf, E_SUCC);
+    syscall_set_retval1(tf, read);
+}
+
 extern uint8_t _binary___obj_user_pingpong_ping_start[];
 extern uint8_t _binary___obj_user_pingpong_pong_start[];
 extern uint8_t _binary___obj_user_pingpong_ding_start[];
 extern uint8_t _binary___obj_user_fstest_fstest_start[];
+extern uint8_t _binary___obj_user_shell_shell_start[];
 
 /**
  * Spawns a new child process.
@@ -115,6 +146,9 @@ void sys_spawn(tf_t *tf)
         break;
     case 4:
         elf_addr = _binary___obj_user_fstest_fstest_start;
+        break;
+    case 5:
+        elf_addr = _binary___obj_user_shell_shell_start;
         break;
     default:
         syscall_set_errno(tf, E_INVAL_PID);

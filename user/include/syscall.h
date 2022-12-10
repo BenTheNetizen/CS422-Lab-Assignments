@@ -20,6 +20,21 @@ static gcc_inline void sys_puts(const char *s, size_t len)
                   : "cc", "memory");
 }
 
+static gcc_inline int sys_readline(char *s, size_t len)
+{
+    int errno, read;
+
+    asm volatile ("int %2"
+                  : "=a" (errno), "=b" (read)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_readline),
+                    "b" (s),
+                    "c" (len)
+                  : "cc", "memory");
+
+    return errno ? - 1 : read;
+}
+
 static gcc_inline pid_t sys_spawn(unsigned int elf_id, unsigned int quota)
 {
     int errno;
@@ -112,13 +127,17 @@ static gcc_inline int sys_fstat(int fd, struct file_stat *st)
 static gcc_inline int sys_link(char *old, char *new)
 {
     int errno, ret;
+    int oldlen = strlen(old) + 1;
+    int newlen = strlen(new) + 1;
 
     asm volatile ("int %2"
                    : "=a" (errno), "=b" (ret)
                    : "i" (T_SYSCALL),
                      "a" (SYS_link),
                      "b" (old),
-                     "c" (new)
+                     "c" (new),
+                     "d" (oldlen),
+                     "S" (newlen)
                    : "cc", "memory");
 
     return errno ? -1 : 0;
@@ -127,12 +146,14 @@ static gcc_inline int sys_link(char *old, char *new)
 static gcc_inline int sys_unlink(char *path)
 {
     int errno, ret;
+    int len = strlen(path) + 1;
 
     asm volatile ("int %2"
                   : "=a" (errno), "=b" (ret)
                   : "i" (T_SYSCALL),
                     "a" (SYS_unlink),
-                    "b" (path)
+                    "b" (path),
+                    "c" (len)
                   : "cc", "memory");
 
     return errno ? -1 : 0;
@@ -142,13 +163,15 @@ static gcc_inline int sys_open(char *path, int omode)
 {
     int errno;
     int fd;
+    int len = strlen(path) + 1;
 
     asm volatile ("int %2"
                   : "=a" (errno), "=b" (fd)
                   : "i" (T_SYSCALL),
                     "a" (SYS_open),
                     "b" (path),
-                    "c" (omode)
+                    "c" (omode),
+                    "d" (len)
                   : "cc", "memory");
 
     return errno ? -1 : fd;
@@ -157,12 +180,14 @@ static gcc_inline int sys_open(char *path, int omode)
 static gcc_inline int sys_mkdir(char *path)
 {
     int errno, ret;
+    int len = strlen(path) + 1;
 
     asm volatile ("int %2"
                   : "=a" (errno), "=b" (ret)
                   : "i" (T_SYSCALL),
                     "a" (SYS_mkdir),
-                    "b" (path)
+                    "b" (path),
+                    "c" (len)
                   : "cc", "memory");
 
     return errno ? -1 : 0;
@@ -171,12 +196,14 @@ static gcc_inline int sys_mkdir(char *path)
 static gcc_inline int sys_chdir(char *path)
 {
     int errno, ret;
+    int len = strlen(path) + 1;
 
     asm volatile ("int %2"
                   : "=a" (errno), "=b" (ret)
                   : "i" (T_SYSCALL),
                     "a" (SYS_chdir),
-                    "b" (path)
+                    "b" (path),
+                    "c" (len)
                   : "cc", "memory");
 
     return errno ? -1 : 0;

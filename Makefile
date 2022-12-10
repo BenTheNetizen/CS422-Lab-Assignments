@@ -138,6 +138,9 @@ qemu-nox-gdb: $(CERTIKOS_IMG) pre-qemu
 qemu-kvm: $(CERTIKOS_IMG)
 	$(V)$(QEMU) $(QEMUOPTS) $(QEMUOPTS_KVM)
 
+qemu-kvm-gdb: $(CERTIKOS_IMG)
+	$(V)$(QEMU) $(QEMUOPTS) $(QEMUOPTS_KVM) -S
+
 qemu-bios: $(CERTIKOS_IMG)
 	$(V)$(QEMU) $(QEMUOPTS) $(QEMUOPTS_TCG) $(QEMUOPTS_BIOS)
 
