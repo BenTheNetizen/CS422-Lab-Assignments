@@ -3,6 +3,8 @@
 
 #ifdef _KERN_
 
+#include <lib/signal.h>
+
 unsigned int tcb_get_state(unsigned int pid);
 void tcb_set_state(unsigned int pid, unsigned int state);
 unsigned int tcb_get_cpu(unsigned int pid);
@@ -15,6 +17,9 @@ void tcb_init_at_id(unsigned int cpu_idx, unsigned int pid);
 
 void *tcb_get_chan(unsigned int pid);
 void tcb_set_chan(unsigned int pid, void *state);
+
+void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func);
+sigfunc* tcb_get_sigfunc(unsigned int pid, unsigned int signum);
 
 #include <kern/fs/stat.h>
 #include <kern/fs/dinode.h>

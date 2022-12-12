@@ -1,6 +1,7 @@
 #include "shell.h"
 #include <file.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // Allocate space for MAX_DIR_DEPTH directories plus '/'s
 #define MAX_DIR_DEPTH 10
@@ -49,6 +50,37 @@ static err_t recurse_dir(char *name, err_t (*cmd)(int argc, char **argv, int opt
     }
 
     return ret;
+}
+
+err_t cmd_kill(int argc, char **argv, int optc, char **optv)
+{
+    // assumes that argv[1] is the process name
+    if (argc != 2) {
+        return E_INVAL_CMD;
+    }
+
+    // kill the process
+    int pid; 
+    atoi(argv[1], &pid);
+    printf("cmd_kill: pid = %d\n", pid);
+    if (pid == 0) {
+        return E_INVAL_CMD;
+    }
+
+    // print the args and options
+    printf("kill: ");
+    for (int i = 0; i < argc; i++) {
+        printf("%s ", argv[i]);
+    }
+    printf("\nopts: ");
+    for (int i = 0; i < optc; i++) {
+        printf("%s ", optv[i]);
+    }
+    printf("\n");
+
+    signal(pid, 100);
+
+    return E_OK;
 }
 
 err_t cmd_ls(int argc, char **argv, int optc, char **optv)

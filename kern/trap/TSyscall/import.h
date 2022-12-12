@@ -23,6 +23,9 @@ unsigned int container_get_nchildren(unsigned int curid);
 unsigned int proc_create(void *elf_addr, unsigned int quota);
 void thread_yield(void);
 
+void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func);
+sigfunc* tcb_get_sigfunc(unsigned int pid, unsigned int signum);
+
 #endif  /* _KERN_ */
 
 #endif  /* !_KERN_TRAP_TSYSCALL_H_ */

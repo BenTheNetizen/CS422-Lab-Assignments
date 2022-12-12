@@ -8,12 +8,56 @@
 #include <dev/console.h>
 #include <dev/intr.h>
 #include <pcpu/PCPUIntro/export.h>
+#include <lib/signal.h>
 
 #include "import.h"
 
 #define BUFLEN 1024  // from kern/dev/console.c
 static char sys_buf[NUM_IDS][PAGESIZE];
+typedef void sigfunc(int);
 
+void sys_signal(tf_t *tf) {
+    int signum = syscall_get_arg2(tf);
+    sigfunc *handler = (sigfunc *)syscall_get_arg3(tf);
+
+    dprintf("sys_signal: signum = %d, handler = %p\n", signum, handler);
+    if (signum < 0 || signum >= NUM_SIGNALS) {
+        syscall_set_errno(tf, E_INVAL_EVENT);
+        return;
+    }
+    tcb_set_sigfunc(get_curid(), signum, handler);
+    syscall_set_errno(tf, E_SUCC);
+}
+
+// calls the signal handler for the process with the given pid
+void sys_kill(tf_t *tf) {
+    int pid = syscall_get_arg2(tf);
+    int signum = syscall_get_arg3(tf);
+
+    dprintf("sys_kill: pid = %d, signum = %d\n", pid, signum);
+    if (pid < 0 || pid >= NUM_IDS) {
+        syscall_set_errno(tf, E_INVAL_EVENT);
+        return;
+    }
+
+    if (signum < 0 || signum >= NUM_SIGNALS) {
+        syscall_set_errno(tf, E_INVAL_EVENT);
+        return;
+    }
+
+    sigfunc *handler = tcb_get_sigfunc(pid, signum);
+    dprintf("sys_kill: handler = %p\n", handler);
+    // if there is no handler for the signal, do nothing
+    if (handler == NULL) {
+        syscall_set_errno(tf, E_SUCC);
+        return;
+    }
+
+    // context switch the process to the handler
+    
+
+    syscall_set_errno(tf, E_SUCC);
+}
 /**
  * Copies a string from user into buffer and prints it to the screen.
  * This is called by the user level "printf" library as a system call.

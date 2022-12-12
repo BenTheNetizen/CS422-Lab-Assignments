@@ -1,5 +1,11 @@
 {
     "files.associations": {
-        "dinode.h": "c"
+        "dinode.h": "c",
+        "stdlib.h": "c",
+        "file.h": "c",
+        "syscall.h": "c",
+        "stdio.h": "c",
+        "import.h": "c",
+        "export.h": "c"
     }
 }

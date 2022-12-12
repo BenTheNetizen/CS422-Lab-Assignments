@@ -7,19 +7,24 @@ int main(int argc, char **argv)
 {
     printf("idle\n");
 
-#ifdef TEST
-    pid_t fstest_pid;
-    if ((fstest_pid = spawn(4, 1000)) != -1)
-        printf("fstest in process %d.\n", fstest_pid);
+    pid_t ping_pid;
+    if ((ping_pid = spawn(1, 1000)) != -1)
+        printf("ping in process %d.\n", ping_pid);
     else
-        printf("Failed to launch fstest.\n");
-#else
-    pid_t shell_pid;
-    if ((shell_pid = spawn(5, 1000)) != -1)
-        printf("shell in process %d.\n", shell_pid);
-    else
-        printf("Failed to launch shell.\n");
-#endif
+        printf("Failed to launch ping.\n");
+    // #ifdef TEST
+    //     pid_t fstest_pid;
+    //     if ((fstest_pid = spawn(4, 1000)) != -1)
+    //         printf("fstest in process %d.\n", fstest_pid);
+    //     else
+    //         printf("Failed to launch fstest.\n");
+    // #else
+    //     pid_t shell_pid;
+    //     if ((shell_pid = spawn(5, 1000)) != -1)
+    //         printf("shell in process %d.\n", shell_pid);
+    //     else
+    //         printf("Failed to launch shell.\n");
+    // #endif
 
     return 0;
 }

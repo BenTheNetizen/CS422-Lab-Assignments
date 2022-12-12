@@ -9,6 +9,37 @@
 #include <types.h>
 #include <x86.h>
 #include <file.h>
+#include <signal.h>
+
+static gcc_inline int sys_signal(int signum, sigfunc *handler)
+{
+    int errno;
+
+    asm volatile ("int %1"
+                  : "=a" (errno)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_signal),
+                    "b" (signum),
+                    "c" (handler)
+                  : "cc", "memory");
+
+    return errno ? - 1 : 0;
+}
+
+static gcc_inline int sys_kill(int pid, int signum)
+{
+    int errno;
+
+    asm volatile ("int %1"
+                  : "=a" (errno)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_kill),
+                    "b" (pid),
+                    "c" (signum)
+                  : "cc", "memory");
+
+    return errno ? - 1 : 0;
+}
 
 static gcc_inline void sys_puts(const char *s, size_t len)
 {

@@ -2,6 +2,7 @@
 #include <lib/debug.h>
 #include <lib/string.h>
 #include <lib/thread.h>
+#include <lib/signal.h>
 
 #include <kern/fs/params.h>
 #include <kern/fs/stat.h>
@@ -9,6 +10,7 @@
 #include <kern/fs/inode.h>
 #include <kern/fs/path.h>
 #include <kern/fs/file.h>
+
 
 /**
  * The structure for the thread control block (TCB).
@@ -27,9 +29,21 @@ struct TCB {
     void *channel;
     struct file *openfiles[NOFILE];  // Open files
     struct inode *cwd;               // Current working directory
+    sigfunc* sigfuncs[NUM_SIGNALS];   // Signal handlers
+
 } in_cache_line;
 
 struct TCB TCBPool[NUM_IDS];
+
+void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func)
+{
+    TCBPool[pid].sigfuncs[signum] = func;
+}
+
+sigfunc* tcb_get_sigfunc(unsigned int pid, unsigned int signum)
+{
+    return TCBPool[pid].sigfuncs[signum];
+}
 
 unsigned int tcb_get_state(unsigned int pid)
 {

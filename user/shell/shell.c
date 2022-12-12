@@ -26,6 +26,7 @@ static cmd_t commands[] = {
     CMD(mkdir, 1, 1),
     CMD(cat, 1, 1),
     CMD(touch, 1, 1),
+    CMD(kill, 1, 1),
     INFIX(">", write),
     INFIX(">>", append),
     CMD(pathtest, 0, 0),
