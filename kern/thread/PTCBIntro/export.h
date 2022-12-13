@@ -20,6 +20,8 @@ void tcb_set_chan(unsigned int pid, void *state);
 
 void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func);
 sigfunc* tcb_get_sigfunc(unsigned int pid, unsigned int signum);
+int tcb_pending_signal_pop(unsigned int pid);
+void tcb_pending_signal_push(unsigned int pid, int signum);
 
 #include <kern/fs/stat.h>
 #include <kern/fs/dinode.h>

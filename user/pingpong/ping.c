@@ -17,6 +17,8 @@ int main(int argc, char **argv)
         printf("ping: registered signal handler.\n");
     }
 
-    kill(4, SIGKILL);
+    kill(4, SIGKILL); // send SIGKILL to pong
+    while(1) {
+    }
     return 0;
 }

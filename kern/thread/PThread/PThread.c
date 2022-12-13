@@ -2,6 +2,7 @@
 #include <lib/thread.h>
 #include <lib/spinlock.h>
 #include <lib/debug.h>
+#include <lib/trap.h>
 #include <dev/lapic.h>
 #include <pcpu/PCPUIntro/export.h>
 #include <kern/thread/PTCBIntro/export.h>
@@ -9,7 +10,7 @@
 #include "import.h"
 
 static spinlock_t sched_lk;
-
+extern tf_t uctx_pool[NUM_IDS];
 unsigned int sched_ticks[NUM_CPUS];
 
 void thread_init(unsigned int mbi_addr)
@@ -47,6 +48,10 @@ unsigned int thread_spawn(void *entry, unsigned int id, unsigned int quota)
     return pid;
 }
 
+void thread_set_signal_ctx(unsigned int pid) {
+    return;
+}
+
 /**
  * Yield to the next thread in the ready queue.
  * You should set the currently running thread state as ready,
@@ -71,12 +76,42 @@ void thread_yield(void)
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
+    dprintf("thread_yield: new_pid = %d, old_pid = %d\n", new_cur_pid, old_cur_pid);
     if (old_cur_pid != new_cur_pid) {
         spinlock_release(&sched_lk);
+        int signal;
+        if (signal = tcb_pending_signal_pop(new_cur_pid) != 0) {
+            sigfunc* handler = tcb_get_sigfunc(new_cur_pid, signal);
+            if (handler) {
+                dprintf("signal %d is handled by %p\n", signal, handler);
+                // set user context eip to handler
+                uintptr_t old_eip = uctx_pool[new_cur_pid].eip;
+                dprintf("old eip is %p\n", old_eip);
+                // uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
+                // // push old eip to user context esp
+                // uctx_pool[new_cur_pid].esp -= 4;
+                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
+            }
+        }
+
         kctx_switch(old_cur_pid, new_cur_pid);
     }
     else {
         spinlock_release(&sched_lk);
+        int signal;
+        if (signal = tcb_pending_signal_pop(new_cur_pid) != 0) {
+            sigfunc* handler = tcb_get_sigfunc(new_cur_pid, signal);
+            if (handler) {
+                dprintf("signal %d is handled by %p\n", signal, handler);
+                // set user context eip to handler
+                uintptr_t old_eip = uctx_pool[new_cur_pid].eip;
+                dprintf("old eip is %p\n", old_eip);
+                // uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
+                // // push old eip to user context esp
+                // uctx_pool[new_cur_pid].esp -= 4;
+                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
+            }
+        }
     }
 }
 
@@ -84,6 +119,7 @@ void sched_update(void)
 {
     spinlock_acquire(&sched_lk);
     sched_ticks[get_pcpu_idx()] += 1000 / LAPIC_TIMER_INTR_FREQ;
+    
     if (sched_ticks[get_pcpu_idx()] >= SCHED_SLICE) {
         sched_ticks[get_pcpu_idx()] = 0;
         spinlock_release(&sched_lk);

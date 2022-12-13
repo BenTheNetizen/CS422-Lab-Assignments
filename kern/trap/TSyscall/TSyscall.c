@@ -45,16 +45,8 @@ void sys_kill(tf_t *tf) {
         return;
     }
 
-    sigfunc *handler = tcb_get_sigfunc(pid, signum);
-    dprintf("sys_kill: handler = %p\n", handler);
-    // if there is no handler for the signal, do nothing
-    if (handler == NULL) {
-        syscall_set_errno(tf, E_SUCC);
-        return;
-    }
-
-    // context switch the process to the handler
-    
+    // append the signal to the process's signal queue
+    tcb_pending_signal_push(pid, signum);    
 
     syscall_set_errno(tf, E_SUCC);
 }

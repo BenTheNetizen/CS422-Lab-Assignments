@@ -25,6 +25,7 @@ void thread_yield(void);
 
 void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func);
 sigfunc* tcb_get_sigfunc(unsigned int pid, unsigned int signum);
+void tcb_pending_signal_push(unsigned int pid, unsigned int signum);
 
 #endif  /* _KERN_ */
 

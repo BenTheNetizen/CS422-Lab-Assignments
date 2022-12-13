@@ -11,7 +11,7 @@
 #include <kern/fs/path.h>
 #include <kern/fs/file.h>
 
-
+#define NPENDING_SIGNALS 32
 /**
  * The structure for the thread control block (TCB).
  * We are storing the set of TCBs in doubly linked lists.
@@ -30,10 +30,34 @@ struct TCB {
     struct file *openfiles[NOFILE];  // Open files
     struct inode *cwd;               // Current working directory
     sigfunc* sigfuncs[NUM_SIGNALS];   // Signal handlers
+    unsigned int pending_signals[NPENDING_SIGNALS]; // Pending signals
 
 } in_cache_line;
 
 struct TCB TCBPool[NUM_IDS];
+
+int tcb_pending_signal_pop(unsigned int pid)
+{
+    for (int i = 0; i < NPENDING_SIGNALS; i++) {
+        if (TCBPool[pid].pending_signals[i] != 0) {
+            int result = TCBPool[pid].pending_signals[i];
+            TCBPool[pid].pending_signals[i] = 0;
+            return result;
+        }
+    }
+    return 0;
+}
+
+void tcb_pending_signal_push(unsigned int pid, unsigned int signum)
+{
+    for (int i = 0; i < NPENDING_SIGNALS; i++) {
+        if (TCBPool[pid].pending_signals[i] == 0) {
+            dprintf("pushing signal %d to pid %d\n", signum, pid);
+            TCBPool[pid].pending_signals[i] = signum;
+            return;
+        }
+    }
+}
 
 void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func)
 {
@@ -93,6 +117,8 @@ void tcb_init_at_id(unsigned int pid)
     TCBPool[pid].next = NUM_IDS;
     TCBPool[pid].channel = 0;
     memzero(TCBPool[pid].openfiles, sizeof *TCBPool[pid].openfiles);
+    memzero(TCBPool[pid].sigfuncs, sizeof *TCBPool[pid].sigfuncs);
+    memzero(TCBPool[pid].pending_signals, sizeof *TCBPool[pid].pending_signals);
     TCBPool[pid].cwd = namei("/");
 }
 
