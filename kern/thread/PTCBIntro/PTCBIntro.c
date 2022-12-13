@@ -40,8 +40,10 @@ int tcb_pending_signal_pop(unsigned int pid)
 {
     for (int i = 0; i < NPENDING_SIGNALS; i++) {
         if (TCBPool[pid].pending_signals[i] != 0) {
+            dprintf("tcb_pending_signal_pop: TCBPool[%d].pending_signals[%d]: %d\n", pid, i, TCBPool[pid].pending_signals[i]);
             int result = TCBPool[pid].pending_signals[i];
             TCBPool[pid].pending_signals[i] = 0;
+            dprintf("returning %d\n", result);
             return result;
         }
     }
@@ -52,8 +54,9 @@ void tcb_pending_signal_push(unsigned int pid, unsigned int signum)
 {
     for (int i = 0; i < NPENDING_SIGNALS; i++) {
         if (TCBPool[pid].pending_signals[i] == 0) {
-            dprintf("pushing signal %d to pid %d\n", signum, pid);
+            dprintf("tcb_pending_signal_push: pushing signal %d to pid %d\n", signum, pid);
             TCBPool[pid].pending_signals[i] = signum;
+            dprintf("tcb_pending_signal_push: TCBPool[%d].pending_signals[%d]: %d\n", pid, i, TCBPool[pid].pending_signals[i]);
             return;
         }
     }

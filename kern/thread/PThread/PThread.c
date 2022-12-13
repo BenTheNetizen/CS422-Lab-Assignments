@@ -76,12 +76,13 @@ void thread_yield(void)
     tcb_set_state(new_cur_pid, TSTATE_RUN);
     set_curid(new_cur_pid);
 
-    dprintf("thread_yield: new_pid = %d, old_pid = %d\n", new_cur_pid, old_cur_pid);
+    // dprintf("thread_yield: new_pid = %d, old_pid = %d\n", new_cur_pid, old_cur_pid);
     if (old_cur_pid != new_cur_pid) {
         spinlock_release(&sched_lk);
-        int signal;
-        if (signal = tcb_pending_signal_pop(new_cur_pid) != 0) {
+        int signal = tcb_pending_signal_pop(new_cur_pid);
+        if (signal != 0) {
             sigfunc* handler = tcb_get_sigfunc(new_cur_pid, signal);
+            dprintf("signal %d is handled by %p\n", signal, handler);
             if (handler) {
                 dprintf("signal %d is handled by %p\n", signal, handler);
                 // set user context eip to handler
@@ -98,9 +99,10 @@ void thread_yield(void)
     }
     else {
         spinlock_release(&sched_lk);
-        int signal;
-        if (signal = tcb_pending_signal_pop(new_cur_pid) != 0) {
+        int signal = tcb_pending_signal_pop(new_cur_pid);
+        if (signal != 0) {
             sigfunc* handler = tcb_get_sigfunc(new_cur_pid, signal);
+            dprintf("signal %d is handled by %p\n", signal, handler);
             if (handler) {
                 dprintf("signal %d is handled by %p\n", signal, handler);
                 // set user context eip to handler
