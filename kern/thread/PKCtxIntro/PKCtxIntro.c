@@ -1,4 +1,5 @@
 #include <lib/x86.h>
+#include <lib/debug.h>
 
 /**
  * Kernel thread context.
@@ -28,6 +29,7 @@ void kctx_set_eip(unsigned int pid, void *eip)
 }
 
 extern void cswitch(struct kctx *from_kctx, struct kctx *to_kctx);
+extern void hswitch(struct kctx *kctx);
 
 /**
  * Saves the states for thread # [from_pid] and restores the states
@@ -36,4 +38,9 @@ extern void cswitch(struct kctx *from_kctx, struct kctx *to_kctx);
 void kctx_switch(unsigned int from_pid, unsigned int to_pid)
 {
     cswitch(&kctx_pool[from_pid], &kctx_pool[to_pid]);
+}
+
+void handler_switch(unsigned int pid) {
+    dprintf("called hanlder swtich\n");
+    hswitch(&kctx_pool[pid]);
 }

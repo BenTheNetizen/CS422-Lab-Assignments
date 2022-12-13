@@ -5,6 +5,7 @@
 
 unsigned int kctx_new(void *entry, unsigned int id, unsigned int quota);
 void kctx_switch(unsigned int from_pid, unsigned int to_pid);
+void handler_switch(unsigned int pid);
 
 void tcb_set_state(unsigned int pid, unsigned int state);
 

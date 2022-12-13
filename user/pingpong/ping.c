@@ -4,6 +4,7 @@
 #include <signal.h>
 
 void sig_handler(int signo) {
+    printf("IT WORKS!!!\n");
     if (signo == SIGKILL) {
         printf("ping: received SIGKILL.\n");
     }

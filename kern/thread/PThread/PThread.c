@@ -78,6 +78,7 @@ void thread_yield(void)
 
     // dprintf("thread_yield: new_pid = %d, old_pid = %d\n", new_cur_pid, old_cur_pid);
     if (old_cur_pid != new_cur_pid) {
+        // dprintf("IN IF BLOCK\n");
         spinlock_release(&sched_lk);
         int signal = tcb_pending_signal_pop(new_cur_pid);
         if (signal != 0) {
@@ -88,16 +89,32 @@ void thread_yield(void)
                 // set user context eip to handler
                 uintptr_t old_eip = uctx_pool[new_cur_pid].eip;
                 dprintf("old eip is %p\n", old_eip);
-                // uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
-                // // push old eip to user context esp
+                uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
+                // push old eip to user context esp
+                // uctx_pool[new_cur_pid].esp -= 4;
+                
+                // c calling conventions
+                // uintptr_t old_esp = uctx_pool[new_cur_pid].esp;
                 // uctx_pool[new_cur_pid].esp -= 4;
                 // *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
+                // // first parameter
+                // uctx_pool[new_cur_pid].esp -= 4;
+                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = signal;
+
+                // // push ebp on stack
+                // uctx_pool[new_cur_pid].esp -= 4;
+                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = uctx_pool[new_cur_pid].regs.ebp;
+
+                // // copy esp into ebp
+                // uctx_pool[new_cur_pid].regs.ebp = old_esp;
+                
             }
         }
 
         kctx_switch(old_cur_pid, new_cur_pid);
     }
     else {
+        dprintf("IN ELSE BLOCK\n");
         spinlock_release(&sched_lk);
         int signal = tcb_pending_signal_pop(new_cur_pid);
         if (signal != 0) {
@@ -108,12 +125,29 @@ void thread_yield(void)
                 // set user context eip to handler
                 uintptr_t old_eip = uctx_pool[new_cur_pid].eip;
                 dprintf("old eip is %p\n", old_eip);
-                // uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
-                // // push old eip to user context esp
+                uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
+                // push old eip to user context esp
                 // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
+                
+                // c calling conventions
+                uintptr_t old_esp = uctx_pool[new_cur_pid].esp;
+                uctx_pool[new_cur_pid].esp -= 4;
+                *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
+                // first parameter
+                uctx_pool[new_cur_pid].esp -= 4;
+                *(uintptr_t*)uctx_pool[new_cur_pid].esp = signal;
+
+                // push ebp on stack
+                uctx_pool[new_cur_pid].esp -= 4;
+                *(uintptr_t*)uctx_pool[new_cur_pid].esp = uctx_pool[new_cur_pid].regs.ebp;
+
+                // copy esp into ebp
+                uctx_pool[new_cur_pid].regs.ebp = old_esp;
+
             }
         }
+
+        handler_switch(new_cur_pid);
     }
 }
 

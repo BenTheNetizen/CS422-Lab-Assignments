@@ -2,6 +2,7 @@
  * void cswitch(struct kctx *from, struct kctx *to);
  */
 	.globl cswitch
+	.globl hswitch
 cswitch:
 	movl	4(%esp), %eax	/* %eax <- from */
 	movl	8(%esp), %edx	/* %edx <- to */
@@ -22,6 +23,20 @@ cswitch:
 	movl	12(%edx), %ebx
 	movl	16(%edx), %ebp
 	movl	20(%edx), %ecx
+	movl	%ecx, 0(%esp)
+
+	xor	%eax, %eax
+	ret
+
+hswitch:
+	movl	4(%esp), %eax	/* %eax <- from */
+	/* load the new kernel context */
+	movl	0(%eax), %esp
+	movl	4(%eax), %edi
+	movl	8(%eax), %esi
+	movl	12(%eax), %ebx
+	movl	16(%eax), %ebp
+	movl	20(%eax), %ecx
 	movl	%ecx, 0(%esp)
 
 	xor	%eax, %eax
