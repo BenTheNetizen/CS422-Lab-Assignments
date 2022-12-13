@@ -15,10 +15,16 @@ int main(int argc, char **argv)
     if (signal(SIGKILL, sig_handler) == -1) {
         printf("ping: failed to register signal handler.\n");
     } else {
-        printf("ping: registered signal handler.\n");
+        printf("ping: registered signal handler for signal %d.\n", SIGKILL);
     }
 
-    kill(4, SIGKILL); // send SIGKILL to pong
+    if (signal(SIGINT, sig_handler) == -1) {
+        printf("ping: failed to register signal handler.\n");
+    } else {
+        printf("ping: registered signal handler for signal %d.\n", SIGINT);
+    }
+
+    // kill(4, SIGKILL); // send SIGKILL to pong
     while(1) {
     }
     return 0;

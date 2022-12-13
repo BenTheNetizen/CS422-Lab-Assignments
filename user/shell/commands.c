@@ -61,7 +61,9 @@ err_t cmd_kill(int argc, char **argv, int optc, char **optv)
 
     // kill the process
     int pid; 
+    int signum;
     atoi(argv[1], &pid);
+    // atoi(*(&(optv[0])+1), &signum); // get the signum from the first option
     printf("cmd_kill: pid = %d\n", pid);
     if (pid == 0) {
         return E_INVAL_CMD;
@@ -75,10 +77,12 @@ err_t cmd_kill(int argc, char **argv, int optc, char **optv)
     printf("\nopts: ");
     for (int i = 0; i < optc; i++) {
         printf("%s ", optv[i]);
+        atoi(optv[i]+1, &signum);
+        printf("kill: pid = %d, signum = %d\n", pid, signum);
     }
     printf("\n");
 
-    signal(pid, 100);
+    kill(pid, signum);
 
     return E_OK;
 }
