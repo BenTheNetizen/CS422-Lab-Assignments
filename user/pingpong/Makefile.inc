@@ -3,6 +3,7 @@
 OBJDIRS += $(USER_OBJDIR)/pingpong
 
 USER_PING_SRC += $(USER_DIR)/pingpong/ping.c
+USER_PING_SRC += $(USER_DIR)/pingpong/hswitch.S
 USER_PING_OBJ := $(patsubst %.c, $(OBJDIR)/%.o, $(USER_PING_SRC))
 USER_PING_OBJ := $(patsubst %.S, $(OBJDIR)/%.o, $(USER_PING_OBJ))
 KERN_BINFILES += $(USER_OBJDIR)/pingpong/ping

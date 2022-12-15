@@ -16,6 +16,12 @@
 static char sys_buf[NUM_IDS][PAGESIZE];
 typedef void sigfunc(int);
 
+void sys_register_wrapper(tf_t *tf) {
+    sigfunc *wrapper = (sigfunc *)syscall_get_arg2(tf);
+    tcb_set_wrapper(get_curid(), wrapper);
+    syscall_set_errno(tf, E_SUCC);
+}
+
 void sys_signal(tf_t *tf) {
     int signum = syscall_get_arg2(tf);
     sigfunc *handler = (sigfunc *)syscall_get_arg3(tf);

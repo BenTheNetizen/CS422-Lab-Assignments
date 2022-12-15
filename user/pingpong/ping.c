@@ -3,8 +3,14 @@
 #include <syscall.h>
 #include <signal.h>
 
+extern void hswitch(uintptr_t handler);
+
+void handler_wrapper(uintptr_t handler){
+    hswitch(handler);
+}
+
 void sig_handler(int signo) {
-    printf("IT WORKS!!!\n");
+    printf("INSIDE HANDLER\n");
     if (signo == SIGKILL) {
         printf("ping: received SIGKILL.\n");
     }
@@ -12,6 +18,7 @@ void sig_handler(int signo) {
 
 int main(int argc, char **argv)
 {
+    register_wrapper(handler_wrapper);
     if (signal(SIGKILL, sig_handler) == -1) {
         printf("ping: failed to register signal handler.\n");
     } else {

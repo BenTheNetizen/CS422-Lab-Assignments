@@ -32,6 +32,7 @@ struct sigaction {
 };
 
 #define signal(int, sigfunc) sys_signal((int), (sigfunc))
+#define register_wrapper(wrapper) sys_register_wrapper((wrapper))
 #define kill(pid, sig)       sys_kill((pid), (sig))
 
 

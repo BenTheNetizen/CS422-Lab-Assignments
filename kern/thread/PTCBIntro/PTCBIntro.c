@@ -30,6 +30,7 @@ struct TCB {
     struct file *openfiles[NOFILE];  // Open files
     struct inode *cwd;               // Current working directory
     sigfunc* sigfuncs[NUM_SIGNALS];   // Signal handlers
+    sigfunc* wrapper;
     unsigned int pending_signals[NPENDING_SIGNALS]; // Pending signals
 
 } in_cache_line;
@@ -60,6 +61,16 @@ void tcb_pending_signal_push(unsigned int pid, unsigned int signum)
             return;
         }
     }
+}
+
+void tcb_set_wrapper(unsigned int pid, sigfunc* wrapper)
+{
+    TCBPool[pid].wrapper = wrapper;
+}
+
+sigfunc* tcb_get_wrapper(unsigned int pid)
+{
+    return TCBPool[pid].wrapper;
 }
 
 void tcb_set_sigfunc(unsigned int pid, unsigned int signum, sigfunc* func)

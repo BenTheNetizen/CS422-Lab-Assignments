@@ -11,6 +11,20 @@
 #include <file.h>
 #include <signal.h>
 
+static gcc_inline int sys_register_wrapper(sigfunc *wrapper)
+{
+    int errno;
+
+    asm volatile ("int %1"
+                  : "=a" (errno)
+                  : "i" (T_SYSCALL),
+                    "a" (SYS_register_wrapper),
+                    "b" (wrapper)
+                  : "cc", "memory");
+
+    return errno ? - 1 : 0;
+}
+
 static gcc_inline int sys_signal(int signum, sigfunc *handler)
 {
     int errno;

@@ -99,6 +99,9 @@ void syscall_dispatch(tf_t *tf)
     case SYS_signal:
         sys_signal(tf);
         break;
+    case SYS_register_wrapper:
+        sys_register_wrapper(tf);
+        break;
     case SYS_kill:
         sys_kill(tf);
         break;

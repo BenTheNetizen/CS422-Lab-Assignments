@@ -83,31 +83,13 @@ void thread_yield(void)
         int signal = tcb_pending_signal_pop(new_cur_pid);
         if (signal != 0) {
             sigfunc* handler = tcb_get_sigfunc(new_cur_pid, signal);
+            sigfunc* wrapper = tcb_get_wrapper(new_cur_pid);
             dprintf("signal %d is handled by %p\n", signal, handler);
-            if (handler) {
+            if (handler && wrapper) {
                 dprintf("signal %d is handled by %p\n", signal, handler);
-                // set user context eip to handler
-                uintptr_t old_eip = uctx_pool[new_cur_pid].eip;
-                dprintf("old eip is %p\n", old_eip);
-                // uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
-                // push old eip to user context esp
-                // uctx_pool[new_cur_pid].esp -= 4;
-                
-                // c calling conventions
-                // uintptr_t old_esp = uctx_pool[new_cur_pid].esp;
-                // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
-                // // first parameter
-                // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = signal;
-
-                // // push ebp on stack
-                // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = uctx_pool[new_cur_pid].regs.ebp;
-
-                // // copy esp into ebp
-                // uctx_pool[new_cur_pid].regs.ebp = old_esp;
-                
+                pt_copyout(uctx_pool[new_cur_pid].eip, new_cur_pid, uctx_pool[new_cur_pid].esp-4, 4);
+                pt_copyout(handler, new_cur_pid, uctx_pool[new_cur_pid].esp-8,4);
+                uctx_pool[new_cur_pid].eip = wrapper;
             }
         }
 
@@ -119,31 +101,13 @@ void thread_yield(void)
         int signal = tcb_pending_signal_pop(new_cur_pid);
         if (signal != 0) {
             sigfunc* handler = tcb_get_sigfunc(new_cur_pid, signal);
+            sigfunc* wrapper = tcb_get_wrapper(new_cur_pid);
             dprintf("signal %d is handled by %p\n", signal, handler);
-            if (handler) {
+            if (handler && wrapper) {
                 dprintf("signal %d is handled by %p\n", signal, handler);
-                // set user context eip to handler
-                // uintptr_t old_eip = uctx_pool[new_cur_pid].eip;
-                // dprintf("old eip is %p\n", old_eip);
-                // uctx_pool[new_cur_pid].eip = (uintptr_t)handler;
-                // // push old eip to user context esp
-                // // uctx_pool[new_cur_pid].esp -= 4;
-                
-                // // c calling conventions
-                // uintptr_t old_esp = uctx_pool[new_cur_pid].esp;
-                // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = old_eip;
-                // // first parameter
-                // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = signal;
-
-                // // push ebp on stack
-                // uctx_pool[new_cur_pid].esp -= 4;
-                // *(uintptr_t*)uctx_pool[new_cur_pid].esp = uctx_pool[new_cur_pid].regs.ebp;
-
-                // // copy esp into ebp
-                // uctx_pool[new_cur_pid].regs.ebp = old_esp;
-
+                pt_copyout(uctx_pool[new_cur_pid].eip, new_cur_pid, uctx_pool[new_cur_pid].esp-4, 4);
+                pt_copyout(handler, new_cur_pid, uctx_pool[new_cur_pid].esp-8,4);
+                uctx_pool[new_cur_pid].eip = wrapper;
             }
         }
 
