@@ -7,8 +7,26 @@ Debug with gdb: make qemu-gdb / make qemu-nox-gdb
 To use your solutions from lab 1: git merge lab1
 To use sample lab 1 solutions: copy files in samples/ to appropriate directories
 
-List here the following info:
-1. who you have worked with
-2. whether you coded this assignment together, and if not, who worked on which part
-3. brief description of what you have implemented
-4. and anything else you would like us to know
+I worked with Benjamin Chen (netID: blc38)
+We coded this assignment together.
+
+## Project 9 - Signal
+In our project, we have a non-functional version that implements the “kill” command in the shell. We referenced the documents provided in the spec as well as various articles found on the web.
+
+First, we provide a high level overview of the signal mechanism in mCertiKOS. The user process should register a signal handler in user space to handle various incoming signals. Ideally, there should be three ways a signal is handled: ignored, caught, or default action. In our implementation, we have all our signals caught. After registering a signal handler, either the kernel or another process in user space can use the “kill” command to notify the kernel to send a signal to the specified target user process. The kernel should handle this by a handshake protocol to switch execution of the target user process at the correct signal handler function. Once the signal handler function has completed execution, the process should return to execution of where it was before receiving the signal. If the signal sent was SIGKILL or SIGSTOP, the process should be terminated.
+
+For the implementation, we first created two syscalls “sys_kill” and “sys_signal.” sys_signal registers a function handler (function pointer) to an array of size NUM_SIGNALS in the respective process’ thread control block (TCB). sys_kill takes in a signal number and a target process to send the signal to. The signal number is stored in the TCB of the target process, where there is a queue of pending signals.
+
+These pending signals are unique to each process’ TCB, and are added to a process’ signal queue when a user calls the “kill” command. These signals are taken off the queue by the scheduler when thread_yield executes; instead of immediately switching kernel context from the old process to the new process, we have implemented a check on the signal queue of the new process, and if there is a pending signal, we pop it off the queue and handle it. Importantly, we have timer interrupts that call thread_yield so we ensure that the signal will reach the target process at some point – even if other processes don’t yield, the kernel preempts and switches control to all other processes periodically. 
+
+During the call to thread_yield, we fetch a pending signal and the respective signal handler function pointer from the target process’ TCB and perform a series of steps. In order to properly manage the handoff of control between kernel to user, we have implemented a wrapper function with assembly code to setup the stack and registers before the handler is run.
+
+Since the handler functions registered by signal are user-level callback functions, they are defined in the userspace. This means we need to setup user context before running the handler. To do this, our handler wrapper is implemented in the userspace as well, and before registering any handler callbacks with the kernel, we register the address of the userspace wrapper function (also stored in the TCB of the appropriate process). We implemented a “sys_register_wrapper” syscall to handle this loading of the wrapper address into the kernel memory. After implementing this system, when a user calls the “kill” command, thread_yield will pick up the signum sent when the kernel switches to that process, in which case it sets up the process stack to hold the main eip and handler eip. It switches the eip register to point to the wrapper eip. This way, when kctx_switch switches to the new process, execution begins from the wrapper’s address. Then, the wrapper calls an assembly function (hswitch) that pulls the handler address from the stack and then stores the user context registers onto the stack. It calls the handler function stored in %eax, and when that is done it restores the register state from the stack. When the wrapper returns, it pulls the main eip of the process from the stack and continues execution from where it would’ve if the signal had not been handled.
+
+Something to note: we made readline asynchronous in the shell. This is to ensure that the timer increments while waiting for user input. If we did not make this change, our signaling mechanism would not work with kill commands from the shell.
+
+In order to finish this implementation, we would need to fix the part of our assembly that redirects the eip to the handler. Currently, we do not make it to the handler code when switching from the wrapper via assembly. Since we were unable to get to the handler, we did not implement code terminating the process – we just have a print statement currently.
+
+To terminate the process, we would need to remove the thread from the processor queues, free the memory that is being used by the process, clear file descriptors, clear the user context for that respective process, and yield the thread to the scheduler. 
+
+
